@@ -159,8 +159,42 @@ function Scene({
     }
   }
 
+  const createMaterial = (isWireframe: boolean = false) => {
+    if (isWireframe) {
+      return new THREE.LineBasicMaterial({
+        color: isDarkMode ? 0xffffff : 0x000000,
+        transparent: true,
+        opacity: 0.5
+      });
+    }
+
+    switch (material) {
+      case 'gold':
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#FFD700"),
+          metalness: 0.9,
+          roughness: 0.1,
+          envMapIntensity: 1
+        })
+      case 'silver':
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#C0C0C0"),
+          metalness: 0.9,
+          roughness: 0.2,
+          envMapIntensity: 1
+        })
+      default: // clay
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color(isDarkMode ? "#888888" : "#CCCCCC"),
+          metalness: 0.1,
+          roughness: 0.8,
+          envMapIntensity: 0.5
+        })
+    }
+  }
+
   useEffect(() => {
-    const material = new THREE.MeshPhongMaterial({ transparent: true, opacity: 0.5 })
+    const material = createMaterial()
     primitive1Ref.current = new THREE.Mesh(createPrimitive(primitive1Type), material.clone())
     primitive2Ref.current = new THREE.Mesh(createPrimitive(primitive2Type), material.clone())
     primitive1Ref.current.material.color.setHex(isDarkMode ? 0xcc0000 : 0xff0000)
@@ -273,10 +307,11 @@ function Scene({
     <>
       <OrbitControls ref={orbitControlsRef} makeDefault enableDamping={false} />
       <TransformControls ref={transformControlsRef} />
-      <Environment preset={isDarkMode ? "night" : "studio"} background={false} />
-      <ambientLight intensity={isDarkMode ? 0.3 : 0.5} />
-      <directionalLight position={[50, 50, 50]} intensity={isDarkMode ? 0.8 : 1.0} castShadow />
-      <directionalLight position={[-50, 50, -50]} intensity={isDarkMode ? 0.6 : 0.8} castShadow />
+      <Environment preset={isDarkMode ? "sunset" : "sunset"} background={false} />
+      <ambientLight intensity={isDarkMode ? 0.2 : 0.4} />
+      <directionalLight position={[10, 10, 5]} intensity={isDarkMode ? 1.5 : 2} castShadow />
+      <directionalLight position={[-10, -10, -5]} intensity={isDarkMode ? 0.8 : 1} castShadow />
+      <pointLight position={[0, 0, 5]} intensity={isDarkMode ? 0.5 : 0.8} />
     </>
   )
 }
