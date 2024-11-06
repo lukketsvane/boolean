@@ -353,12 +353,13 @@ export default function Component() {
   const randomizePrimitives = () => {
     setPrimitive1Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
     setPrimitive2Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
-    setSize1([Math.random() * 40 + 10, Math.random() * 40 + 10, Math.random() * 40 + 10])
-    setSize2([Math.random() * 40 + 10, Math.random() * 40 + 10, Math.random() * 40 + 10])
+    setSize1([Math.random() * 30 + 20, Math.random() * 30 + 20, Math.random() * 30 + 20])
+    setSize2([Math.random() * 30 + 20, Math.random() * 30 + 20, Math.random() * 30 + 20])
     setRotation1([Math.random() * 360, Math.random() * 360, Math.random() * 360])
     setRotation2([Math.random() * 360, Math.random() * 360, Math.random() * 360])
     setPosition1([Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10])
     setPosition2([Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10])
+    setSelectedObject(null)
   }
 
   const handleSizeChange = (index: number, axis: number, value: number) => {
