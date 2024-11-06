@@ -356,7 +356,7 @@ export default function Component() {
     <div className={`flex flex-col lg:flex-row gap-4 p-4 ${isDarkMode ? 'dark' : ''}`}>
       <div className="w-full lg:w-1/2 space-y-4">
         <div className="w-full aspect-square border dark:border-gray-700">
-          <Canvas shadows camera={{ position: [50, 50, 50], fov: 75 }}>
+          <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }}>
             <Scene
               primitive1Type={primitive1Type}
               primitive2Type={primitive2Type}
