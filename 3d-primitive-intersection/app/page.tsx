@@ -245,6 +245,9 @@ function Scene({
           setSelectedObject(2)
           transformControlsRef.current?.attach(primitive2Ref.current)
         }
+        if (transformControlsRef.current) {
+          transformControlsRef.current.visible = true
+        }
       } else {
         setSelectedObject(null)
         transformControlsRef.current?.detach()
@@ -304,10 +307,18 @@ function Scene({
     }
   }, [selectedObject, setPosition1, setPosition2, setRotation1, setRotation2])
 
+  useEffect(() => {
+    if (transformControlsRef.current) {
+      transformControlsRef.current.visible = selectedObject !== null
+    }
+  }, [selectedObject])
+
   return (
     <>
       <OrbitControls ref={orbitControlsRef} makeDefault enableDamping={false} />
-      <TransformControls ref={transformControlsRef} />
+      {selectedObject !== null && (
+        <TransformControls ref={transformControlsRef} />
+      )}
       <Environment preset={isDarkMode ? "sunset" : "sunset"} background={false} />
       <ambientLight intensity={isDarkMode ? 0.2 : 0.4} />
       <directionalLight position={[10, 10, 5]} intensity={isDarkMode ? 1.5 : 2} castShadow />
@@ -407,7 +418,7 @@ export default function Component() {
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = 'scene.gltf'
+        link.download = `${primitive1Type}_${primitive2Type}.gltf`
         link.click()
         URL.revokeObjectURL(url)
       },
@@ -417,10 +428,39 @@ export default function Component() {
 
   const captureSnapshot = () => {
     if (canvasRef.current) {
-      const dataURL = canvasRef.current.toDataURL('image/png')
+      // Create a new scene and camera
+      const scene = new THREE.Scene()
+      const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 1000)
+      camera.position.set(30, 30, 30)
+      camera.lookAt(0, 0, 0)
+
+      // Add primitives to the scene
+      const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial())
+      const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial())
+      updatePrimitive(primitive1, primitive1Type, size1, rotation1, position1)
+      updatePrimitive(primitive2, primitive2Type, size2, rotation2, position2)
+      scene.add(primitive1, primitive2)
+
+      // Add lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.2 : 0.4)
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, isDarkMode ? 1.5 : 2)
+      directionalLight1.position.set(10, 10, 5)
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, isDarkMode ? 0.8 : 1)
+      directionalLight2.position.set(-10, -10, -5)
+      const pointLight = new THREE.PointLight(0xffffff, isDarkMode ? 0.5 : 0.8)
+      pointLight.position.set(0, 0, 5)
+      scene.add(ambientLight, directionalLight1, directionalLight2, pointLight)
+
+      // Render the scene
+      const renderer = new THREE.WebGLRenderer({ antialias: true })
+      renderer.setSize(1024, 1024)
+      renderer.render(scene, camera)
+
+      // Create and download the image
+      const dataURL = renderer.domElement.toDataURL('image/png')
       const link = document.createElement('a')
       link.href = dataURL
-      link.download = 'scene_snapshot.png'
+      link.download = `${primitive1Type}_${primitive2Type}.png`
       link.click()
     }
   }
