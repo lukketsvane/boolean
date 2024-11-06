@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
-import { OrbitControls, TransformControls, Environment } from '@react-three/drei'
+import { OrbitControls, Environment } from '@react-three/drei'
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { CSG } from 'three-csg-ts'
 import { Button } from '@/components/ui/button'
