@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import { OrbitControls, TransformControls, Environment } from '@react-three/drei'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
@@ -65,10 +65,10 @@ function Scene({
   const primitive1Ref = useRef<THREE.Mesh>(null)
   const primitive2Ref = useRef<THREE.Mesh>(null)
   const intersectionRef = useRef<THREE.Mesh>(null)
-  const transformControlsRef = useRef<TransformControls>(null)
-  const orbitControlsRef = useRef<OrbitControls>(null)
+  const transformControlsRef = useRef<typeof TransformControls>(null)
+  const orbitControlsRef = useRef<typeof OrbitControls>(null)
 
-  const createPrimitive = useCallback((type: PrimitiveType) => {
+  const createPrimitive = (type: PrimitiveType) => {
     switch (type) {
       case 'box':
         return new THREE.BoxGeometry(1, 1, 1)
@@ -83,17 +83,18 @@ function Scene({
       case 'torus':
         return new THREE.TorusGeometry(0.5, 0.25, 16, 100)
     }
-  }, [])
+  }
 
-  const updatePrimitive = useCallback((mesh: THREE.Mesh, type: PrimitiveType, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
+  const updatePrimitive = (mesh: THREE.Mesh, type: PrimitiveType, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
+    if (!mesh) return
     mesh.geometry.dispose()
     mesh.geometry = createPrimitive(type)
     mesh.scale.set(...size)
-    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180))
+    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180) as [number, number, number])
     mesh.position.set(...position)
-  }, [createPrimitive])
+  }
 
-  const calculateIntersection = useCallback(() => {
+  const calculateIntersection = () => {
     if (!primitive1Ref.current || !primitive2Ref.current) return
 
     const bspA = CSG.fromMesh(primitive1Ref.current)
@@ -154,7 +155,7 @@ function Scene({
       primitive2Ref.current.material.opacity = showIntersection ? 0.2 : 0
       primitive2Ref.current.visible = showIntersection
     }
-  }, [material, showIntersection, scene])
+  }
 
   useEffect(() => {
     const material = new THREE.MeshPhongMaterial({ transparent: true, opacity: 0.5 })
@@ -171,7 +172,7 @@ function Scene({
       primitive2Ref.current!.geometry.dispose()
       primitive2Ref.current!.material.dispose()
     }
-  }, [scene, createPrimitive, primitive1Type, primitive2Type])
+  }, [scene, primitive1Type, primitive2Type])
 
   useFrame(() => {
     if (primitive1Ref.current) {
