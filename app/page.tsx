@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
 import { OrbitControls, TransformControls, Environment } from '@react-three/drei'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
@@ -18,8 +18,30 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const primitiveTypes = ['box', 'cylinder', 'sphere', 'cone', 'pyramid', 'torus']
-const materialOptions = ['clay', 'gold', 'silver']
+const primitiveTypes = ['box', 'cylinder', 'sphere', 'cone', 'pyramid', 'torus'] as const
+const materialOptions = ['clay', 'gold', 'silver'] as const
+
+type PrimitiveType = typeof primitiveTypes[number]
+type MaterialType = typeof materialOptions[number]
+
+interface SceneProps {
+  primitive1Type: PrimitiveType
+  primitive2Type: PrimitiveType
+  size1: [number, number, number]
+  size2: [number, number, number]
+  rotation1: [number, number, number]
+  rotation2: [number, number, number]
+  position1: [number, number, number]
+  position2: [number, number, number]
+  showIntersection: boolean
+  material: MaterialType
+  setSelectedObject: (object: number | null) => void
+  selectedObject: number | null
+  setPosition1: (position: [number, number, number]) => void
+  setPosition2: (position: [number, number, number]) => void
+  setRotation1: (rotation: [number, number, number]) => void
+  setRotation2: (rotation: [number, number, number]) => void
+}
 
 function Scene({
   primitive1Type,
@@ -38,7 +60,7 @@ function Scene({
   setPosition2,
   setRotation1,
   setRotation2,
-}) {
+}: SceneProps) {
   const { scene, camera } = useThree()
   const primitive1Ref = useRef<THREE.Mesh>(null)
   const primitive2Ref = useRef<THREE.Mesh>(null)
@@ -46,7 +68,7 @@ function Scene({
   const transformControlsRef = useRef<TransformControls>(null)
   const orbitControlsRef = useRef<OrbitControls>(null)
 
-  const createPrimitive = useCallback((type: string) => {
+  const createPrimitive = useCallback((type: PrimitiveType) => {
     switch (type) {
       case 'box':
         return new THREE.BoxGeometry(1, 1, 1)
@@ -60,17 +82,15 @@ function Scene({
         return new THREE.ConeGeometry(0.5, 1, 4)
       case 'torus':
         return new THREE.TorusGeometry(0.5, 0.25, 16, 100)
-      default:
-        return new THREE.BoxGeometry(1, 1, 1)
     }
   }, [])
 
-  const updatePrimitive = useCallback((mesh: THREE.Mesh, type: string, size: number[], rotation: number[], position: number[]) => {
+  const updatePrimitive = useCallback((mesh: THREE.Mesh, type: PrimitiveType, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
     mesh.geometry.dispose()
     mesh.geometry = createPrimitive(type)
-    mesh.scale.set(size[0], size[1], size[2])
-    mesh.rotation.set(rotation[0] * Math.PI / 180, rotation[1] * Math.PI / 180, rotation[2] * Math.PI / 180)
-    mesh.position.set(position[0], position[1], position[2])
+    mesh.scale.set(...size)
+    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180))
+    mesh.position.set(...position)
   }, [createPrimitive])
 
   const calculateIntersection = useCallback(() => {
@@ -80,7 +100,7 @@ function Scene({
     const bspB = CSG.fromMesh(primitive2Ref.current)
     const intersectionBSP = bspA.intersect(bspB)
     
-    let intersectionMaterial
+    let intersectionMaterial: THREE.MeshPhysicalMaterial
     switch (material) {
       case 'gold':
         intersectionMaterial = new THREE.MeshPhysicalMaterial({
@@ -115,7 +135,9 @@ function Scene({
     if (intersectionRef.current) {
       scene.remove(intersectionRef.current)
       intersectionRef.current.geometry.dispose()
-      intersectionRef.current.material.dispose()
+      if (intersectionRef.current.material instanceof THREE.Material) {
+        intersectionRef.current.material.dispose()
+      }
     }
 
     intersectionRef.current = CSG.toMesh(intersectionBSP, new THREE.Matrix4(), intersectionMaterial)
@@ -167,7 +189,7 @@ function Scene({
 
     const onMouseClick = (event: MouseEvent) => {
       const canvas = event.target as HTMLCanvasElement
-      if (!(canvas instanceof HTMLCanvasElement)) return // Only proceed if the click is on the canvas
+      if (!(canvas instanceof HTMLCanvasElement)) return
 
       const rect = canvas.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -258,16 +280,16 @@ function Scene({
 
 export default function Component() {
   const [showIntersection, setShowIntersection] = useState(false)
-  const [primitive1Type, setPrimitive1Type] = useState('box')
-  const [primitive2Type, setPrimitive2Type] = useState('cylinder')
-  const [size1, setSize1] = useState([25, 25, 25])
-  const [size2, setSize2] = useState([25, 25, 25])
-  const [rotation1, setRotation1] = useState([0, 0, 0])
-  const [rotation2, setRotation2] = useState([0, 0, 0])
-  const [position1, setPosition1] = useState([-12.5, 0, 0])
-  const [position2, setPosition2] = useState([-25, 0, 0])
+  const [primitive1Type, setPrimitive1Type] = useState<PrimitiveType>('box')
+  const [primitive2Type, setPrimitive2Type] = useState<PrimitiveType>('cylinder')
+  const [size1, setSize1] = useState<[number, number, number]>([25, 25, 25])
+  const [size2, setSize2] = useState<[number, number, number]>([25, 25, 25])
+  const [rotation1, setRotation1] = useState<[number, number, number]>([0, 0, 0])
+  const [rotation2, setRotation2] = useState<[number, number, number]>([0, 0, 0])
+  const [position1, setPosition1] = useState<[number, number, number]>([-12.5, 0, 0])
+  const [position2, setPosition2] = useState<[number, number, number]>([-25, 0, 0])
   const [selectedObject, setSelectedObject] = useState<number | null>(null)
-  const [material, setMaterial] = useState('clay')
+  const [material, setMaterial] = useState<MaterialType>('clay')
 
   const randomizePrimitives = () => {
     setPrimitive1Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
@@ -281,39 +303,30 @@ export default function Component() {
   }
 
   const handleSizeChange = (index: number, axis: number, value: number) => {
-    if (selectedObject === 1) {
-      const newSize = [...size1]
+    const setter = index === 1 ? setSize1 : setSize2
+    setter(prev => {
+      const newSize = [...prev] as [number, number, number]
       newSize[axis] = value
-      setSize1(newSize)
-    } else if (selectedObject === 2) {
-      const newSize = [...size2]
-      newSize[axis] = value
-      setSize2(newSize)
-    }
+      return newSize
+    })
   }
 
   const handleRotationChange = (index: number, axis: number, value: number) => {
-    if (selectedObject === 1) {
-      const newRotation = [...rotation1]
+    const setter = index === 1 ? setRotation1 : setRotation2
+    setter(prev => {
+      const newRotation = [...prev] as [number, number, number]
       newRotation[axis] = value
-      setRotation1(newRotation)
-    } else if (selectedObject === 2) {
-      const newRotation = [...rotation2]
-      newRotation[axis] = value
-      setRotation2(newRotation)
-    }
+      return newRotation
+    })
   }
 
-  const handleTransformChange = (axis: number, value: number) => {
-    if (selectedObject === 1) {
-      const newPosition = [...position1]
+  const handleTransformChange = (index: number, axis: number, value: number) => {
+    const setter = index === 1 ? setPosition1 : setPosition2
+    setter(prev => {
+      const newPosition = [...prev] as [number, number, number]
       newPosition[axis] = value
-      setPosition1(newPosition)
-    } else if (selectedObject === 2) {
-      const newPosition = [...position2]
-      newPosition[axis] = value
-      setPosition2(newPosition)
-    }
+      return newPosition
+    })
   }
 
   return (
@@ -368,7 +381,7 @@ export default function Component() {
           {[1, 2].map((index) => (
             <Select
               key={index}
-              onValueChange={(value) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
+              onValueChange={(value: PrimitiveType) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
               value={index === 1 ? primitive1Type : primitive2Type}
             >
               <SelectTrigger>
@@ -430,7 +443,7 @@ export default function Component() {
                       min={-50}
                       max={50}
                       value={selectedObject === 1 ? position1[i] : position2[i]}
-                      onChange={(e) => handleTransformChange(i, Number(e.target.value))}
+                      onChange={(e) => handleTransformChange(selectedObject, i, Number(e.target.value))}
                       className="w-full"
                     />
                   </div>
