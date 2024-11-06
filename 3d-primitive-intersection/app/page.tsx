@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Download, Shuffle } from 'lucide-react'
+import { Download, Shuffle, Image as ImageIcon } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -330,6 +330,7 @@ export default function Component() {
   const [selectedObject, setSelectedObject] = useState<number | null>(null)
   const [material, setMaterial] = useState<MaterialType>('clay')
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -414,6 +415,16 @@ export default function Component() {
     )
   }
 
+  const captureSnapshot = () => {
+    if (canvasRef.current) {
+      const dataURL = canvasRef.current.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.href = dataURL
+      link.download = 'scene_snapshot.png'
+      link.click()
+    }
+  }
+
   const createPrimitive = (type: PrimitiveType) => {
     switch (type) {
       case 'box':
@@ -465,7 +476,7 @@ export default function Component() {
     <div className={`flex flex-col lg:flex-row gap-4 p-4 ${isDarkMode ? 'dark' : ''}`}>
       <div className="w-full lg:w-1/2 space-y-4">
         <div className="w-full aspect-square border dark:border-gray-700">
-          <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }}>
+          <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }} ref={canvasRef}>
             <Scene
               primitive1Type={primitive1Type}
               primitive2Type={primitive2Type}
@@ -496,6 +507,10 @@ export default function Component() {
             <Button onClick={downloadScene} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
               <Download className="h-4 w-4" />
               <span className="sr-only">Download scene</span>
+            </Button>
+            <Button onClick={captureSnapshot} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
+              <ImageIcon className="h-4 w-4" />
+              <span className="sr-only">Capture snapshot</span>
             </Button>
           </div>
           <div className="flex space-x-2">
