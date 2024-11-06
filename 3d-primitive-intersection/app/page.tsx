@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Shuffle } from 'lucide-react'
+import { Download, Shuffle } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
 
 const primitiveTypes = ['box', 'cylinder', 'sphere', 'cone', 'pyramid', 'torus'] as const
 const materialOptions = ['clay', 'gold', 'silver'] as const
@@ -387,6 +388,78 @@ export default function Component() {
     })
   }
 
+  const downloadScene = () => {
+    const scene = new THREE.Scene()
+    const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial())
+    const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial())
+    updatePrimitive(primitive1, primitive1Type, size1, rotation1, position1)
+    updatePrimitive(primitive2, primitive2Type, size2, rotation2, position2)
+    scene.add(primitive1, primitive2)
+
+    const exporter = new GLTFExporter()
+    exporter.parse(
+      scene,
+      (gltf) => {
+        const output = JSON.stringify(gltf, null, 2)
+        const blob = new Blob([output], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'scene.gltf'
+        link.click()
+        URL.revokeObjectURL(url)
+      },
+      { binary: false }
+    )
+  }
+
+  const createPrimitive = (type: PrimitiveType) => {
+    switch (type) {
+      case 'box':
+        return new THREE.BoxGeometry(1, 1, 1)
+      case 'cylinder':
+        return new THREE.CylinderGeometry(0.5, 0.5, 1, 32)
+      case 'sphere':
+        return new THREE.SphereGeometry(0.5, 32, 32)
+      case 'cone':
+        return new THREE.ConeGeometry(0.5, 1, 32)
+      case 'pyramid':
+        return new THREE.ConeGeometry(0.5, 1, 4)
+      case 'torus':
+        return new THREE.TorusGeometry(0.5, 0.25, 16, 100)
+    }
+  }
+
+  const createMaterial = () => {
+    switch (material) {
+      case 'gold':
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#FFD700"),
+          metalness: 0.9,
+          roughness: 0.1,
+        })
+      case 'silver':
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#C0C0C0"),
+          metalness: 0.9,
+          roughness: 0.2,
+        })
+      default: // clay
+        return new THREE.MeshStandardMaterial({
+          color: new THREE.Color(isDarkMode ? "#888888" : "#CCCCCC"),
+          metalness: 0.1,
+          roughness: 0.8,
+        })
+    }
+  }
+
+  const updatePrimitive = (mesh: THREE.Mesh, type: PrimitiveType, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
+    mesh.geometry = createPrimitive(type)
+    mesh.scale.set(...size)
+    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180) as [number, number, number])
+    mesh.position.set(...position)
+  }
+
   return (
     <div className={`flex flex-col lg:flex-row gap-4 p-4 ${isDarkMode ? 'dark' : ''}`}>
       <div className="w-full lg:w-1/2 space-y-4">
@@ -414,9 +487,16 @@ export default function Component() {
           </Canvas>
         </div>
         <div className="flex justify-between items-center">
-          <Button onClick={randomizePrimitives} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
-            <Shuffle className="h-4 w-4" />
-          </Button>
+          <div className="flex space-x-2">
+            <Button onClick={randomizePrimitives} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
+              <Shuffle className="h-4 w-4" />
+              <span className="sr-only">Randomize primitives</span>
+            </Button>
+            <Button onClick={downloadScene} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Download scene</span>
+            </Button>
+          </div>
           <div className="flex space-x-2">
             {materialOptions.map((option) => (
               <button
