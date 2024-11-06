@@ -41,6 +41,7 @@ interface SceneProps {
   setPosition2: (position: [number, number, number]) => void
   setRotation1: (rotation: [number, number, number]) => void
   setRotation2: (rotation: [number, number, number]) => void
+  isDarkMode: boolean
 }
 
 function Scene({
@@ -60,6 +61,7 @@ function Scene({
   setPosition2,
   setRotation1,
   setRotation2,
+  isDarkMode,
 }: SceneProps) {
   const { scene, camera } = useThree()
   const primitive1Ref = useRef<THREE.Mesh>(null)
@@ -125,7 +127,7 @@ function Scene({
         break
       default: // clay
         intersectionMaterial = new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color("#CCCCCC"),
+          color: new THREE.Color(isDarkMode ? "#666666" : "#CCCCCC"),
           metalness: 0.2,
           roughness: 0.8,
           clearcoat: 0.0,
@@ -161,8 +163,8 @@ function Scene({
     const material = new THREE.MeshPhongMaterial({ transparent: true, opacity: 0.5 })
     primitive1Ref.current = new THREE.Mesh(createPrimitive(primitive1Type), material.clone())
     primitive2Ref.current = new THREE.Mesh(createPrimitive(primitive2Type), material.clone())
-    primitive1Ref.current.material.color.setHex(0xff0000)
-    primitive2Ref.current.material.color.setHex(0x00ff00)
+    primitive1Ref.current.material.color.setHex(isDarkMode ? 0xcc0000 : 0xff0000)
+    primitive2Ref.current.material.color.setHex(isDarkMode ? 0x00cc00 : 0x00ff00)
     scene.add(primitive1Ref.current, primitive2Ref.current)
 
     return () => {
@@ -172,7 +174,7 @@ function Scene({
       primitive2Ref.current!.geometry.dispose()
       primitive2Ref.current!.material.dispose()
     }
-  }, [scene, primitive1Type, primitive2Type])
+  }, [scene, primitive1Type, primitive2Type, isDarkMode])
 
   useFrame(() => {
     if (primitive1Ref.current) {
@@ -271,10 +273,10 @@ function Scene({
     <>
       <OrbitControls ref={orbitControlsRef} makeDefault enableDamping={false} />
       <TransformControls ref={transformControlsRef} />
-      <Environment preset="studio" background={false} />
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[50, 50, 50]} intensity={1.0} castShadow />
-      <directionalLight position={[-50, 50, -50]} intensity={0.8} castShadow />
+      <Environment preset={isDarkMode ? "night" : "studio"} background={false} />
+      <ambientLight intensity={isDarkMode ? 0.3 : 0.5} />
+      <directionalLight position={[50, 50, 50]} intensity={isDarkMode ? 0.8 : 1.0} castShadow />
+      <directionalLight position={[-50, 50, -50]} intensity={isDarkMode ? 0.6 : 0.8} castShadow />
     </>
   )
 }
@@ -291,6 +293,26 @@ export default function Component() {
   const [position2, setPosition2] = useState<[number, number, number]>([-25, 0, 0])
   const [selectedObject, setSelectedObject] = useState<number | null>(null)
   const [material, setMaterial] = useState<MaterialType>('clay')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    setIsDarkMode(darkModeMediaQuery.matches)
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDarkMode(e.matches)
+    }
+
+    darkModeMediaQuery.addEventListener('change', handleChange)
+
+    return () => {
+      darkModeMediaQuery.removeEventListener('change', handleChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode)
+  }, [isDarkMode])
 
   const randomizePrimitives = () => {
     setPrimitive1Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
@@ -331,9 +353,9 @@ export default function Component() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 p-4">
+    <div className={`flex flex-col lg:flex-row gap-4 p-4 ${isDarkMode ? 'dark' : ''}`}>
       <div className="w-full lg:w-1/2 space-y-4">
-        <div className="w-full aspect-square border">
+        <div className="w-full aspect-square border dark:border-gray-700">
           <Canvas shadows camera={{ position: [50, 50, 50], fov: 75 }}>
             <Scene
               primitive1Type={primitive1Type}
@@ -352,11 +374,12 @@ export default function Component() {
               setPosition2={setPosition2}
               setRotation1={setRotation1}
               setRotation2={setRotation2}
+              isDarkMode={isDarkMode}
             />
           </Canvas>
         </div>
         <div className="flex justify-between items-center">
-          <Button onClick={randomizePrimitives} variant="outline" size="icon">
+          <Button onClick={randomizePrimitives} variant="outline" size="icon" className="dark:bg-gray-800 dark:text-white">
             <Shuffle className="h-4 w-4" />
           </Button>
           <div className="flex space-x-2">
@@ -365,11 +388,11 @@ export default function Component() {
                 key={option}
                 onClick={() => setMaterial(option)}
                 className={`w-6 h-6 ${
-                  material === option ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                  material === option ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-blue-400' : ''
                 } ${
-                  option === 'clay' ? 'bg-gray-400' :
-                  option === 'gold' ? 'bg-yellow-400' :
-                  'bg-gray-300'
+                  option === 'clay' ? 'bg-gray-400 dark:bg-gray-600' :
+                  option === 'gold' ? 'bg-yellow-400 dark:bg-yellow-600' :
+                  'bg-gray-300 dark:bg-gray-500'
                 }`}
                 aria-label={`Set material to ${option}`}
               />
@@ -385,10 +408,10 @@ export default function Component() {
               onValueChange={(value: PrimitiveType) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
               value={index === 1 ? primitive1Type : primitive2Type}
             >
-              <SelectTrigger>
+              <SelectTrigger className="dark:bg-gray-800 dark:text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-gray-800 dark:text-white">
                 {primitiveTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -403,49 +426,49 @@ export default function Component() {
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Size</Label>
+                <Label className="dark:text-white">Size</Label>
                 {['X', 'Y', 'Z'].map((axis, i) => (
                   <div key={axis} className="flex items-center space-x-2">
-                    <span className="w-4">{axis}</span>
+                    <span className="w-4 dark:text-white">{axis}</span>
                     <Input
                       type="number"
                       min={1}
                       max={50}
                       value={selectedObject === 1 ? size1[i] : size2[i]}
                       onChange={(e) => handleSizeChange(selectedObject, i, Number(e.target.value))}
-                      className="w-full"
+                      className="w-full dark:bg-gray-800 dark:text-white"
                     />
                   </div>
                 ))}
               </div>
               <div className="space-y-2">
-                <Label>Rotation</Label>
+                <Label className="dark:text-white">Rotation</Label>
                 {['X', 'Y', 'Z'].map((axis, i) => (
                   <div key={axis} className="flex items-center space-x-2">
-                    <span className="w-4">{axis}</span>
+                    <span className="w-4 dark:text-white">{axis}</span>
                     <Input
                       type="number"
                       min={0}
                       max={360}
                       value={selectedObject === 1 ? rotation1[i] : rotation2[i]}
                       onChange={(e) => handleRotationChange(selectedObject, i, Number(e.target.value))}
-                      className="w-full"
+                      className="w-full dark:bg-gray-800 dark:text-white"
                     />
                   </div>
                 ))}
               </div>
               <div className="space-y-2">
-                <Label>Position</Label>
+                <Label className="dark:text-white">Position</Label>
                 {['X', 'Y', 'Z'].map((axis, i) => (
                   <div key={axis} className="flex items-center space-x-2">
-                    <span className="w-4">{axis}</span>
+                    <span className="w-4 dark:text-white">{axis}</span>
                     <Input
                       type="number"
                       min={-50}
                       max={50}
                       value={selectedObject === 1 ? position1[i] : position2[i]}
                       onChange={(e) => handleTransformChange(selectedObject, i, Number(e.target.value))}
-                      className="w-full"
+                      className="w-full dark:bg-gray-800 dark:text-white"
                     />
                   </div>
                 ))}
@@ -459,8 +482,9 @@ export default function Component() {
             checked={showIntersection}
             onCheckedChange={setShowIntersection}
             id="intersection-toggle"
+            className="dark:bg-gray-700"
           />
-          <Label htmlFor="intersection-toggle">Show Primitives</Label>
+          <Label htmlFor="intersection-toggle" className="dark:text-white">Show Primitives</Label>
         </div>
       </div>
     </div>
