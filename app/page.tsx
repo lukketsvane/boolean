@@ -1,73 +1,76 @@
 'use client'
 
-
 import { useState, useRef, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
+import { OrbitControls, TransformControls, Environment } from '@react-three/drei'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls'
-import { Environment } from '@react-three/drei'
 import { CSG } from 'three-csg-ts'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Shuffle } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
-const primitiveTypes = ['box', 'cylinder', 'sphere', 'cone', 'pyramid', 'torus'] as const
-const materialOptions = ['clay', 'gold', 'silver'] as const
-
-type PrimitiveType = typeof primitiveTypes[number]
-type MaterialType = typeof materialOptions[number]
-
-interface SceneProps {
-  primitive1Type: PrimitiveType
-  primitive2Type: PrimitiveType
-  size1: [number, number, number]
-  size2: [number, number, number]
-  rotation1: [number, number, number]
-  rotation2: [number, number, number]
-  position1: [number, number, number]
-  position2: [number, number, number]
-  showIntersection: boolean
-  material: MaterialType
-  setSelectedObject: (object: number | null) => void
-  selectedObject: number | null
-  setPosition1: (position: [number, number, number]) => void
-  setPosition2: (position: [number, number, number]) => void
-  setRotation1: (rotation: [number, number, number]) => void
-  setRotation2: (rotation: [number, number, number]) => void
-}
+const primitiveTypes = ['box', 'cylinder', 'sphere', 'cone', 'pyramid', 'torus']
+const materialOptions = ['clay', 'gold', 'silver']
 
 function Scene({
-  primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2,
-  showIntersection, material, setSelectedObject, selectedObject, setPosition1, setPosition2,
-  setRotation1, setRotation2
-}: SceneProps) {
+  primitive1Type,
+  primitive2Type,
+  size1,
+  size2,
+  rotation1,
+  rotation2,
+  position1,
+  position2,
+  showIntersection,
+  material,
+  setSelectedObject,
+  selectedObject,
+  setPosition1,
+  setPosition2,
+  setRotation1,
+  setRotation2,
+}) {
   const { scene, camera } = useThree()
-  const [primitive1Ref, primitive2Ref, intersectionRef] = [useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null)]
+  const primitive1Ref = useRef<THREE.Mesh>(null)
+  const primitive2Ref = useRef<THREE.Mesh>(null)
+  const intersectionRef = useRef<THREE.Mesh>(null)
   const transformControlsRef = useRef<TransformControls>(null)
   const orbitControlsRef = useRef<OrbitControls>(null)
 
-  const createPrimitive = useCallback((type: PrimitiveType) => {
-    const geometries = {
-      box: () => new THREE.BoxGeometry(1, 1, 1),
-      cylinder: () => new THREE.CylinderGeometry(0.5, 0.5, 1, 32),
-      sphere: () => new THREE.SphereGeometry(0.5, 32, 32),
-      cone: () => new THREE.ConeGeometry(0.5, 1, 32),
-      pyramid: () => new THREE.ConeGeometry(0.5, 1, 4),
-      torus: () => new THREE.TorusGeometry(0.5, 0.25, 16, 100)
+  const createPrimitive = useCallback((type: string) => {
+    switch (type) {
+      case 'box':
+        return new THREE.BoxGeometry(1, 1, 1)
+      case 'cylinder':
+        return new THREE.CylinderGeometry(0.5, 0.5, 1, 32)
+      case 'sphere':
+        return new THREE.SphereGeometry(0.5, 32, 32)
+      case 'cone':
+        return new THREE.ConeGeometry(0.5, 1, 32)
+      case 'pyramid':
+        return new THREE.ConeGeometry(0.5, 1, 4)
+      case 'torus':
+        return new THREE.TorusGeometry(0.5, 0.25, 16, 100)
+      default:
+        return new THREE.BoxGeometry(1, 1, 1)
     }
-    return geometries[type]()
   }, [])
 
-  const updatePrimitive = useCallback((mesh: THREE.Mesh, type: PrimitiveType, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
+  const updatePrimitive = useCallback((mesh: THREE.Mesh, type: string, size: number[], rotation: number[], position: number[]) => {
     mesh.geometry.dispose()
     mesh.geometry = createPrimitive(type)
-    mesh.scale.set(...size)
-    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180))
-    mesh.position.set(...position)
+    mesh.scale.set(size[0], size[1], size[2])
+    mesh.rotation.set(rotation[0] * Math.PI / 180, rotation[1] * Math.PI / 180, rotation[2] * Math.PI / 180)
+    mesh.position.set(position[0], position[1], position[2])
   }, [createPrimitive])
 
   const calculateIntersection = useCallback(() => {
@@ -77,13 +80,37 @@ function Scene({
     const bspB = CSG.fromMesh(primitive2Ref.current)
     const intersectionBSP = bspA.intersect(bspB)
     
-    const materialProperties = {
-      clay: { color: "#CCCCCC", metalness: 0.2, roughness: 0.8, clearcoat: 0.0, envMapIntensity: 0.5 },
-      gold: { color: "#FFD700", metalness: 0.95, roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.1, envMapIntensity: 1.5 },
-      silver: { color: "#C0C0C0", metalness: 0.9, roughness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 1.2 }
+    let intersectionMaterial
+    switch (material) {
+      case 'gold':
+        intersectionMaterial = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color("#FFD700"),
+          metalness: 0.95,
+          roughness: 0.05,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.1,
+          envMapIntensity: 1.5
+        })
+        break
+      case 'silver':
+        intersectionMaterial = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color("#C0C0C0"),
+          metalness: 0.9,
+          roughness: 0.1,
+          clearcoat: 0.8,
+          clearcoatRoughness: 0.1,
+          envMapIntensity: 1.2
+        })
+        break
+      default: // clay
+        intersectionMaterial = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color("#CCCCCC"),
+          metalness: 0.2,
+          roughness: 0.8,
+          clearcoat: 0.0,
+          envMapIntensity: 0.5
+        })
     }
-    
-    const intersectionMaterial = new THREE.MeshPhysicalMaterial(materialProperties[material])
 
     if (intersectionRef.current) {
       scene.remove(intersectionRef.current)
@@ -92,15 +119,19 @@ function Scene({
     }
 
     intersectionRef.current = CSG.toMesh(intersectionBSP, new THREE.Matrix4(), intersectionMaterial)
-    intersectionRef.current.castShadow = intersectionRef.current.receiveShadow = true
+    intersectionRef.current.castShadow = true
+    intersectionRef.current.receiveShadow = true
+
     scene.add(intersectionRef.current)
 
-    ;[primitive1Ref, primitive2Ref].forEach(ref => {
-      if (ref.current) {
-        ref.current.material.opacity = showIntersection ? 0.2 : 0
-        ref.current.visible = showIntersection
-      }
-    })
+    if (primitive1Ref.current) {
+      primitive1Ref.current.material.opacity = showIntersection ? 0.2 : 0
+      primitive1Ref.current.visible = showIntersection
+    }
+    if (primitive2Ref.current) {
+      primitive2Ref.current.material.opacity = showIntersection ? 0.2 : 0
+      primitive2Ref.current.visible = showIntersection
+    }
   }, [material, showIntersection, scene])
 
   useEffect(() => {
@@ -112,19 +143,21 @@ function Scene({
     scene.add(primitive1Ref.current, primitive2Ref.current)
 
     return () => {
-      ;[primitive1Ref, primitive2Ref].forEach(ref => {
-        if (ref.current) {
-          scene.remove(ref.current)
-          ref.current.geometry.dispose()
-          ref.current.material.dispose()
-        }
-      })
+      scene.remove(primitive1Ref.current!, primitive2Ref.current!)
+      primitive1Ref.current!.geometry.dispose()
+      primitive1Ref.current!.material.dispose()
+      primitive2Ref.current!.geometry.dispose()
+      primitive2Ref.current!.material.dispose()
     }
   }, [scene, createPrimitive, primitive1Type, primitive2Type])
 
   useFrame(() => {
-    if (primitive1Ref.current) updatePrimitive(primitive1Ref.current, primitive1Type, size1, rotation1, position1)
-    if (primitive2Ref.current) updatePrimitive(primitive2Ref.current, primitive2Type, size2, rotation2, position2)
+    if (primitive1Ref.current) {
+      updatePrimitive(primitive1Ref.current, primitive1Type, size1, rotation1, position1)
+    }
+    if (primitive2Ref.current) {
+      updatePrimitive(primitive2Ref.current, primitive2Type, size2, rotation2, position2)
+    }
     calculateIntersection()
   })
 
@@ -134,7 +167,7 @@ function Scene({
 
     const onMouseClick = (event: MouseEvent) => {
       const canvas = event.target as HTMLCanvasElement
-      if (!(canvas instanceof HTMLCanvasElement)) return
+      if (!(canvas instanceof HTMLCanvasElement)) return // Only proceed if the click is on the canvas
 
       const rect = canvas.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -145,9 +178,13 @@ function Scene({
 
       if (intersects.length > 0) {
         const clickedObject = intersects[0].object
-        const objectIndex = clickedObject === primitive1Ref.current ? 1 : 2
-        setSelectedObject(objectIndex)
-        transformControlsRef.current?.attach(clickedObject)
+        if (clickedObject === primitive1Ref.current) {
+          setSelectedObject(1)
+          transformControlsRef.current?.attach(primitive1Ref.current)
+        } else if (clickedObject === primitive2Ref.current) {
+          setSelectedObject(2)
+          transformControlsRef.current?.attach(primitive2Ref.current)
+        }
       } else {
         setSelectedObject(null)
         transformControlsRef.current?.detach()
@@ -164,14 +201,35 @@ function Scene({
   useEffect(() => {
     const controls = transformControlsRef.current
     if (controls) {
-      const handleMouseDown = () => { if (orbitControlsRef.current) orbitControlsRef.current.enabled = false }
-      const handleMouseUp = () => { if (orbitControlsRef.current) orbitControlsRef.current.enabled = true }
+      const handleMouseDown = () => {
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = false
+        }
+      }
+      const handleMouseUp = () => {
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = true
+        }
+      }
       const handleChange = () => {
         if (controls.object) {
-          const { position, rotation } = controls.object
-          const setters = selectedObject === 1 ? [setPosition1, setRotation1] : [setPosition2, setRotation2]
-          setters[0]([position.x, position.y, position.z])
-          setters[1]([rotation.x, rotation.y, rotation.z].map(r => r * 180 / Math.PI) as [number, number, number])
+          const position = controls.object.position
+          const rotation = controls.object.rotation
+          if (selectedObject === 1) {
+            setPosition1([position.x, position.y, position.z])
+            setRotation1([
+              rotation.x * 180 / Math.PI,
+              rotation.y * 180 / Math.PI,
+              rotation.z * 180 / Math.PI
+            ])
+          } else if (selectedObject === 2) {
+            setPosition2([position.x, position.y, position.z])
+            setRotation2([
+              rotation.x * 180 / Math.PI,
+              rotation.y * 180 / Math.PI,
+              rotation.z * 180 / Math.PI
+            ])
+          }
         }
       }
 
@@ -200,39 +258,62 @@ function Scene({
 
 export default function Component() {
   const [showIntersection, setShowIntersection] = useState(false)
-  const [primitive1Type, setPrimitive1Type] = useState<PrimitiveType>('box')
-  const [primitive2Type, setPrimitive2Type] = useState<PrimitiveType>('cylinder')
-  const [size1, setSize1] = useState<[number, number, number]>([25, 25, 25])
-  const [size2, setSize2] = useState<[number, number, number]>([25, 25, 25])
-  const [rotation1, setRotation1] = useState<[number, number, number]>([0, 0, 0])
-  const [rotation2, setRotation2] = useState<[number, number, number]>([0, 0, 0])
-  const [position1, setPosition1] = useState<[number, number, number]>([-12.5, 0, 0])
-  const [position2, setPosition2] = useState<[number, number, number]>([-25, 0, 0])
+  const [primitive1Type, setPrimitive1Type] = useState('box')
+  const [primitive2Type, setPrimitive2Type] = useState('cylinder')
+  const [size1, setSize1] = useState([25, 25, 25])
+  const [size2, setSize2] = useState([25, 25, 25])
+  const [rotation1, setRotation1] = useState([0, 0, 0])
+  const [rotation2, setRotation2] = useState([0, 0, 0])
+  const [position1, setPosition1] = useState([-12.5, 0, 0])
+  const [position2, setPosition2] = useState([-25, 0, 0])
   const [selectedObject, setSelectedObject] = useState<number | null>(null)
-  const [material, setMaterial] = useState<MaterialType>('clay')
+  const [material, setMaterial] = useState('clay')
 
   const randomizePrimitives = () => {
-    const randomPrimitive = () => primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)]
-    const randomSize = () => [Math.random() * 40 + 10, Math.random() * 40 + 10, Math.random() * 40 + 10] as [number, number, number]
-    const randomRotation = () => [Math.random() * 360, Math.random() * 360, Math.random() * 360] as [number, number, number]
-    const randomPosition = () => [Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10] as [number, number, number]
-
-    setPrimitive1Type(randomPrimitive())
-    setPrimitive2Type(randomPrimitive())
-    setSize1(randomSize())
-    setSize2(randomSize())
-    setRotation1(randomRotation())
-    setRotation2(randomRotation())
-    setPosition1(randomPosition())
-    setPosition2(randomPosition())
+    setPrimitive1Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
+    setPrimitive2Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
+    setSize1([Math.random() * 40 + 10, Math.random() * 40 + 10, Math.random() * 40 + 10])
+    setSize2([Math.random() * 40 + 10, Math.random() * 40 + 10, Math.random() * 40 + 10])
+    setRotation1([Math.random() * 360, Math.random() * 360, Math.random() * 360])
+    setRotation2([Math.random() * 360, Math.random() * 360, Math.random() * 360])
+    setPosition1([Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10])
+    setPosition2([Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10])
   }
 
-  const handleChange = (setter: Function) => (axis: number, value: number) => {
-    setter((prev: [number, number, number]) => {
-      const newValue = [...prev]
-      newValue[axis] = value
-      return newValue as [number, number, number]
-    })
+  const handleSizeChange = (index: number, axis: number, value: number) => {
+    if (selectedObject === 1) {
+      const newSize = [...size1]
+      newSize[axis] = value
+      setSize1(newSize)
+    } else if (selectedObject === 2) {
+      const newSize = [...size2]
+      newSize[axis] = value
+      setSize2(newSize)
+    }
+  }
+
+  const handleRotationChange = (index: number, axis: number, value: number) => {
+    if (selectedObject === 1) {
+      const newRotation = [...rotation1]
+      newRotation[axis] = value
+      setRotation1(newRotation)
+    } else if (selectedObject === 2) {
+      const newRotation = [...rotation2]
+      newRotation[axis] = value
+      setRotation2(newRotation)
+    }
+  }
+
+  const handleTransformChange = (axis: number, value: number) => {
+    if (selectedObject === 1) {
+      const newPosition = [...position1]
+      newPosition[axis] = value
+      setPosition1(newPosition)
+    } else if (selectedObject === 2) {
+      const newPosition = [...position2]
+      newPosition[axis] = value
+      setPosition2(newPosition)
+    }
   }
 
   return (
@@ -287,7 +368,7 @@ export default function Component() {
           {[1, 2].map((index) => (
             <Select
               key={index}
-              onValueChange={(value: PrimitiveType) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
+              onValueChange={(value) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
               value={index === 1 ? primitive1Type : primitive2Type}
             >
               <SelectTrigger>
@@ -307,31 +388,54 @@ export default function Component() {
         {selectedObject && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
-              {['Size', 'Rotation', 'Position'].map((property, propertyIndex) => (
-                <div key={property} className="space-y-2">
-                  <Label>{property}</Label>
-                  {['X', 'Y', 'Z'].map((axis, axisIndex) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4">{axis}</span>
-                      <Input
-                        type="number"
-                        min={propertyIndex === 0 ? 1 : propertyIndex === 1 ? 0 : -50}
-                        max={propertyIndex === 0 ? 50 : propertyIndex === 1 ? 360 : 50}
-                        value={selectedObject === 1 ? 
-                          (propertyIndex === 0 ? size1 : propertyIndex === 1 ? rotation1 : position1)[axisIndex] :
-                          (propertyIndex === 0 ? size2 : propertyIndex === 1 ? rotation2 : position2)[axisIndex]
-                        }
-                        onChange={(e) => handleChange(
-                          selectedObject === 1 ? 
-                            (propertyIndex === 0 ? setSize1 : propertyIndex === 1 ? setRotation1 : setPosition1) :
-                            (propertyIndex === 0 ? setSize2 : propertyIndex === 1 ? setRotation2 : setPosition2)
-                        )(axisIndex, Number(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ))}
+              <div className="space-y-2">
+                <Label>Size</Label>
+                {['X', 'Y', 'Z'].map((axis, i) => (
+                  <div key={axis} className="flex items-center space-x-2">
+                    <span className="w-4">{axis}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={selectedObject === 1 ? size1[i] : size2[i]}
+                      onChange={(e) => handleSizeChange(selectedObject, i, Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <Label>Rotation</Label>
+                {['X', 'Y', 'Z'].map((axis, i) => (
+                  <div key={axis} className="flex items-center space-x-2">
+                    <span className="w-4">{axis}</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={360}
+                      value={selectedObject === 1 ? rotation1[i] : rotation2[i]}
+                      onChange={(e) => handleRotationChange(selectedObject, i, Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <Label>Position</Label>
+                {['X', 'Y', 'Z'].map((axis, i) => (
+                  <div key={axis} className="flex items-center space-x-2">
+                    <span className="w-4">{axis}</span>
+                    <Input
+                      type="number"
+                      min={-50}
+                      max={50}
+                      value={selectedObject === 1 ? position1[i] : position2[i]}
+                      onChange={(e) => handleTransformChange(i, Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
