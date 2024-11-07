@@ -573,38 +573,25 @@ export default function Component() {
       camera.position.set(30, 30, 30)
       camera.lookAt(0, 0, 0)
 
-      // Add primitives to the scene based on visibility settings
-      if (showIntersection || selectedObject === 1) {
-        const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
-        primitive1.scale.set(...size1)
-        primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
-        primitive1.position.set(...position1)
-        scene.add(primitive1)
-      }
-
-      if (showIntersection || selectedObject === 2) {
-        const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
-        primitive2.scale.set(...size2)
-        primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
-        primitive2.position.set(...position2)
-        scene.add(primitive2)
-      }
+      // Add primitives to the scene
+      const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
+      const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
+      primitive1.scale.set(...size1)
+      primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
+      primitive1.position.set(...position1)
+      primitive2.scale.set(...size2)
+      primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
+      primitive2.position.set(...position2)
+      
+      // Ensure both primitives are visible in the snapshot
+      primitive1.visible = true
+      primitive2.visible = true
+      
+      scene.add(primitive1, primitive2)
 
       // Calculate and add intersection
-      const primitive1ForCSG = new THREE.Mesh(createPrimitive(primitive1Type))
-      primitive1ForCSG.scale.set(...size1)
-      primitive1ForCSG.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
-      primitive1ForCSG.position.set(...position1)
-      primitive1ForCSG.updateMatrix()
-
-      const primitive2ForCSG = new THREE.Mesh(createPrimitive(primitive2Type))
-      primitive2ForCSG.scale.set(...size2)
-      primitive2ForCSG.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
-      primitive2ForCSG.position.set(...position2)
-      primitive2ForCSG.updateMatrix()
-
-      const bspA = CSG.fromMesh(primitive1ForCSG)
-      const bspB = CSG.fromMesh(primitive2ForCSG)
+      const bspA = CSG.fromMesh(primitive1)
+      const bspB = CSG.fromMesh(primitive2)
       const intersectionBSP = bspA.intersect(bspB)
       const intersectionMesh = CSG.toMesh(intersectionBSP, new THREE.Matrix4(), createMaterial(material, isDarkMode, materialParams, true))
       intersectionMesh.castShadow = true
@@ -633,24 +620,7 @@ export default function Component() {
       link.download = `${primitive1Type}_${primitive2Type}.png`
       link.click()
     }
-  }, [
-    canvasRef,
-    primitive1Type,
-    primitive2Type,
-    size1,
-    size2,
-    rotation1,
-    rotation2,
-    position1,
-    position2,
-    material,
-    isDarkMode,
-    materialParams,
-    light1,
-    light2,
-    showIntersection,
-    selectedObject,
-  ])
+  }, [canvasRef, primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams, light1, light2])
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)

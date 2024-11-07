@@ -27,7 +27,9 @@
     "tailwindcss-animate": "1.0.7",
     "three": "0.157.0",
     "three-csg-ts": "3.1.13",
-    "three-gltf-exporter": "^0.0.1"
+    "three-gltf-exporter": "^0.0.1",
+    "three-subdivide": "^1.1.5",
+    "three-subdivision-modifier": "^1.0.5"
   },
   "devDependencies": {
     "@types/node": "22.9.0",
