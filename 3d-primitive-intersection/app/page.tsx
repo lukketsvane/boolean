@@ -47,8 +47,16 @@ interface SceneProps {
   materialParams: MaterialParams
   setMaterialParams: React.Dispatch<React.SetStateAction<MaterialParams>>
   isFullscreen: boolean
-  lightIntensity: number
-  setLightIntensity: (intensity: number) => void
+  light1: {
+    isOn: boolean
+    intensity: number
+    position: [number, number, number]
+  }
+  light2: {
+    isOn: boolean
+    intensity: number
+    position: [number, number, number]
+  }
 }
 
 interface MaterialParams {
@@ -168,8 +176,8 @@ function Scene({
   isDarkMode,
   materialParams,
   isFullscreen,
-  lightIntensity,
-  setLightIntensity,
+  light1,
+  light2,
 }: SceneProps) {
   const { scene, camera } = useThree()
   const primitive1Ref = useRef<THREE.Mesh>(null)
@@ -177,7 +185,8 @@ function Scene({
   const intersectionRef = useRef<THREE.Mesh>(null)
   const transformControlsRef = useRef<typeof TransformControls>(null)
   const orbitControlsRef = useRef<typeof OrbitControls>(null)
-  const directionalLightRef = useRef<THREE.DirectionalLight>(null)
+  const directionalLight1Ref = useRef<THREE.DirectionalLight>(null)
+  const directionalLight2Ref = useRef<THREE.DirectionalLight>(null)
 
   const primitive1Geometry = useMemo(() => createPrimitive(primitive1Type), [primitive1Type])
   const primitive2Geometry = useMemo(() => createPrimitive(primitive2Type), [primitive2Type])
@@ -247,9 +256,7 @@ function Scene({
     return () => {
       scene.remove(primitive1Ref.current!, primitive2Ref.current!)
       primitive1Ref.current!.geometry.dispose()
-      primitive1Ref.current!.material.dispose()
       primitive2Ref.current!.geometry.dispose()
-      primitive2Ref.current!.material.dispose()
     }
   }, [scene, primitive1Geometry, primitive2Geometry, materialInstance, isDarkMode])
 
@@ -366,13 +373,24 @@ function Scene({
       )}
       <Environment preset={isDarkMode ? "night" : "sunset"} background={false} />
       <ambientLight intensity={isDarkMode ? 0.2 : 0.4} />
-      <directionalLight
-        ref={directionalLightRef}
-        position={[10, 10, 5]}
-        intensity={lightIntensity}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-      />
+      {light1.isOn && (
+        <directionalLight
+          ref={directionalLight1Ref}
+          position={light1.position}
+          intensity={light1.intensity}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+        />
+      )}
+      {light2.isOn && (
+        <directionalLight
+          ref={directionalLight2Ref}
+          position={light2.position}
+          intensity={light2.intensity}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+        />
+      )}
       {isFullscreen && (
         <PivotControls
           anchor={[0, 0, 0]}
@@ -404,7 +422,6 @@ export default function Component() {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [lightIntensity, setLightIntensity] = useState(2)
   const [materialParams, setMaterialParams] = useState<MaterialParams>({
     clearcoatRoughness: 0.1,
     clearcoat: 1,
@@ -418,6 +435,20 @@ export default function Component() {
     albedo: "#FFFFFF",
     opacity: 0.7,
   })
+
+  const [light1, setLight1] = useState({
+    isOn: true,
+    intensity: 2,
+    position: [10, 10, 5] as [number, number, number],
+  })
+
+  const [light2, setLight2] = useState({
+    isOn: true,
+    intensity: 1,
+    position: [-10, -10, -5] as [number, number, number],
+  })
+
+  const [selectedLight, setSelectedLight] = useState(1)
 
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -571,13 +602,13 @@ export default function Component() {
 
       // Add lighting
       const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.2 : 0.4)
-      const directionalLight1 = new THREE.DirectionalLight(0xffffff, isDarkMode ? 1.5 : 2)
-      directionalLight1.position.set(10, 10, 5)
-      const directionalLight2 = new THREE.DirectionalLight(0xffffff, isDarkMode ? 0.8 : 1)
-      directionalLight2.position.set(-10, -10, -5)
-      const pointLight = new THREE.PointLight(0xffffff, isDarkMode ? 0.5 : 0.8)
-      pointLight.position.set(0, 0, 5)
-      scene.add(ambientLight, directionalLight1, directionalLight2, pointLight)
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, light1.intensity)
+      directionalLight1.position.set(...light1.position)
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, light2.intensity)
+      directionalLight2.position.set(...light2.position)
+      scene.add(ambientLight)
+      if (light1.isOn) scene.add(directionalLight1)
+      if (light2.isOn) scene.add(directionalLight2)
 
       // Render the scene
       const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -591,7 +622,7 @@ export default function Component() {
       link.download = `${primitive1Type}_${primitive2Type}.png`
       link.click()
     }
-  }, [canvasRef, primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams])
+  }, [canvasRef, primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams, light1, light2])
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
@@ -626,8 +657,8 @@ export default function Component() {
               materialParams={materialParams}
               setMaterialParams={setMaterialParams}
               isFullscreen={isFullscreen}
-              lightIntensity={lightIntensity}
-              setLightIntensity={setLightIntensity}
+              light1={light1}
+              light2={light2}
             />
           </Canvas>
         </div>
@@ -641,17 +672,115 @@ export default function Component() {
           <span className="sr-only">{isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}</span>
         </Button>
         {isFullscreen && (
-          <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
-            <Label htmlFor="light-intensity" className="text-black dark:text-white">Light Intensity</Label>
-            <Slider
-              id="light-intensity"
-              min={0}
-              max={5}
-              step={0.1}
-              value={[lightIntensity]}
-              onValueChange={([value]) => setLightIntensity(value)}
-              className="w-32"
-            />
+          <div className="absolute top-4 right-4 flex flex-col items-end space-y-2 z-10">
+            {/* Tabs */}
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => setSelectedLight(1)}
+                variant={selectedLight === 1 ? 'default' : 'ghost'}
+              >
+                Light 1
+              </Button>
+              <Button
+                onClick={() => setSelectedLight(2)}
+                variant={selectedLight === 2 ? 'default' : 'ghost'}
+              >
+                Light 2
+              </Button>
+            </div>
+            {/* Controls for the selected light */}
+            {selectedLight === 1 && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={light1.isOn}
+                    onCheckedChange={(checked) =>
+                      setLight1((prev) => ({ ...prev, isOn: checked }))
+                    }
+                  />
+                  <Label className="text-black dark:text-white">Light 1 On/Off</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-black dark:text-white">Intensity</Label>
+                  <Slider
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    value={[light1.intensity]}
+                    onValueChange={([value]) =>
+                      setLight1((prev) => ({ ...prev, intensity: value }))
+                    }
+                    className="w-32"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-black dark:text-white">Position</Label>
+                  {['X', 'Y', 'Z'].map((axis, i) => (
+                    <div key={axis} className="flex items-center space-x-2">
+                      <span className="w-4 text-black dark:text-white">{axis}</span>
+                      <Input
+                        type="number"
+                        value={light1.position[i]}
+                        onChange={(e) =>
+                          setLight1((prev) => {
+                            const newPosition = [...prev.position] as [number, number, number]
+                            newPosition[i] = Number(e.target.value)
+                            return { ...prev, position: newPosition }
+                          })
+                        }
+                        className="w-full bg-black text-white dark:bg-black dark:text-white"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {selectedLight === 2 && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={light2.isOn}
+                    onCheckedChange={(checked) =>
+                      setLight2((prev) => ({ ...prev, isOn: checked }))
+                    }
+                  />
+                  <Label className="text-black dark:text-white">Light 2 On/Off</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-black dark:text-white">Intensity</Label>
+                  <Slider
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    value={[light2.intensity]}
+                    onValueChange={([value]) =>
+                      setLight2((prev) => ({ ...prev, intensity: value }))
+                    }
+                    className="w-32"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-black dark:text-white">Position</Label>
+                  {['X', 'Y', 'Z'].map((axis, i) => (
+                    <div key={axis} className="flex items-center space-x-2">
+                      <span className="w-4 text-black dark:text-white">{axis}</span>
+                      <Input
+                        type="number"
+                        value={light2.position[i]}
+                        onChange={(e) =>
+                          setLight2((prev) => {
+                            const newPosition = [...prev.position] as [number, number, number]
+                            newPosition[i] = Number(e.target.value)
+                            return { ...prev, position: newPosition }
+                          })
+                        }
+                        className="w-full bg-black text-white dark:bg-black dark:text-white"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {!isFullscreen && (
@@ -703,6 +832,7 @@ export default function Component() {
         )}
       </div>
       {!isFullscreen && (
+
         <div className="w-full lg:w-1/2 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             {[1, 2].map((index) => (
