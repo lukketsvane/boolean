@@ -57,3 +57,69 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* High Contrast Theme */
+.high-contrast {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --card: 0 0 100%;
+  --card-foreground: 0 0% 0%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 0%;
+  --primary: 210 100% 30%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 90%;
+  --secondary-foreground: 0 0% 0%;
+  --muted: 0 0% 85%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 210 100% 30%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 100% 40%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 70%;
+  --input: 0 0% 80%;
+  --ring: 210 100% 30%;
+}
+
+.high-contrast.dark {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 10%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 0%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 210 100% 60%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 80%;
+  --accent: 210 100% 60%;
+  --accent-foreground: 0 0% 0%;
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 0%;
+  --border: 0 0% 30%;
+  --input: 0 0% 20%;
+  --ring: 210 100% 60%;
+}
+
+/* Additional high-contrast utility classes */
+.high-contrast .border-high-contrast {
+  @apply border-black dark:border-white;
+}
+
+.high-contrast .text-high-contrast {
+  @apply text-black dark:text-white;
+}
+
+.high-contrast .bg-high-contrast {
+  @apply bg-white dark:bg-black;
+}
+
+.high-contrast .hover\:bg-high-contrast:hover {
+  @apply hover:bg-gray-200 dark:hover:bg-gray-800;
+}
+
+.high-contrast .focus\:ring-high-contrast:focus {
+  @apply focus:ring-black dark:focus:ring-white;
+}
