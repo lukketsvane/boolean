@@ -185,8 +185,6 @@ function Scene({
   const intersectionRef = useRef<THREE.Mesh>(null)
   const transformControlsRef = useRef<typeof TransformControls>(null)
   const orbitControlsRef = useRef<typeof OrbitControls>(null)
-  const directionalLight1Ref = useRef<THREE.DirectionalLight>(null)
-  const directionalLight2Ref = useRef<THREE.DirectionalLight>(null)
 
   const primitive1Geometry = useMemo(() => createPrimitive(primitive1Type), [primitive1Type])
   const primitive2Geometry = useMemo(() => createPrimitive(primitive2Type), [primitive2Type])
@@ -245,8 +243,8 @@ function Scene({
   useEffect(() => {
     primitive1Ref.current = new THREE.Mesh(primitive1Geometry, materialInstance.clone())
     primitive2Ref.current = new THREE.Mesh(primitive2Geometry, materialInstance.clone())
-    primitive1Ref.current.material.color.setHex(isDarkMode ? 0xcc0000 : 0xff0000)
-    primitive2Ref.current.material.color.setHex(isDarkMode ? 0x00cc00 : 0x00ff00)
+    ;(primitive1Ref.current.material as THREE.MeshStandardMaterial).color.setHex(isDarkMode ? 0xcc0000 : 0xff0000)
+    ;(primitive2Ref.current.material as THREE.MeshStandardMaterial).color.setHex(isDarkMode ? 0x00cc00 : 0x00ff00)
     primitive1Ref.current.castShadow = true
     primitive1Ref.current.receiveShadow = true
     primitive2Ref.current.castShadow = true
@@ -256,7 +254,9 @@ function Scene({
     return () => {
       scene.remove(primitive1Ref.current!, primitive2Ref.current!)
       primitive1Ref.current!.geometry.dispose()
+      ;(primitive1Ref.current!.material as THREE.Material).dispose()
       primitive2Ref.current!.geometry.dispose()
+      ;(primitive2Ref.current!.material as THREE.Material).dispose()
     }
   }, [scene, primitive1Geometry, primitive2Geometry, materialInstance, isDarkMode])
 
@@ -375,7 +375,6 @@ function Scene({
       <ambientLight intensity={isDarkMode ? 0.2 : 0.4} />
       {light1.isOn && (
         <directionalLight
-          ref={directionalLight1Ref}
           position={light1.position}
           intensity={light1.intensity}
           castShadow
@@ -384,7 +383,6 @@ function Scene({
       )}
       {light2.isOn && (
         <directionalLight
-          ref={directionalLight2Ref}
           position={light2.position}
           intensity={light2.intensity}
           castShadow
@@ -575,25 +573,38 @@ export default function Component() {
       camera.position.set(30, 30, 30)
       camera.lookAt(0, 0, 0)
 
-      // Add primitives to the scene
-      const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
-      const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
-      primitive1.scale.set(...size1)
-      primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
-      primitive1.position.set(...position1)
-      primitive2.scale.set(...size2)
-      primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
-      primitive2.position.set(...position2)
-      
-      // Ensure both primitives are visible in the snapshot
-      primitive1.visible = true
-      primitive2.visible = true
-      
-      scene.add(primitive1, primitive2)
+      // Add primitives to the scene based on visibility settings
+      if (showIntersection || selectedObject === 1) {
+        const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
+        primitive1.scale.set(...size1)
+        primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
+        primitive1.position.set(...position1)
+        scene.add(primitive1)
+      }
+
+      if (showIntersection || selectedObject === 2) {
+        const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
+        primitive2.scale.set(...size2)
+        primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
+        primitive2.position.set(...position2)
+        scene.add(primitive2)
+      }
 
       // Calculate and add intersection
-      const bspA = CSG.fromMesh(primitive1)
-      const bspB = CSG.fromMesh(primitive2)
+      const primitive1ForCSG = new THREE.Mesh(createPrimitive(primitive1Type))
+      primitive1ForCSG.scale.set(...size1)
+      primitive1ForCSG.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
+      primitive1ForCSG.position.set(...position1)
+      primitive1ForCSG.updateMatrix()
+
+      const primitive2ForCSG = new THREE.Mesh(createPrimitive(primitive2Type))
+      primitive2ForCSG.scale.set(...size2)
+      primitive2ForCSG.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
+      primitive2ForCSG.position.set(...position2)
+      primitive2ForCSG.updateMatrix()
+
+      const bspA = CSG.fromMesh(primitive1ForCSG)
+      const bspB = CSG.fromMesh(primitive2ForCSG)
       const intersectionBSP = bspA.intersect(bspB)
       const intersectionMesh = CSG.toMesh(intersectionBSP, new THREE.Matrix4(), createMaterial(material, isDarkMode, materialParams, true))
       intersectionMesh.castShadow = true
@@ -622,7 +633,24 @@ export default function Component() {
       link.download = `${primitive1Type}_${primitive2Type}.png`
       link.click()
     }
-  }, [canvasRef, primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams, light1, light2])
+  }, [
+    canvasRef,
+    primitive1Type,
+    primitive2Type,
+    size1,
+    size2,
+    rotation1,
+    rotation2,
+    position1,
+    position2,
+    material,
+    isDarkMode,
+    materialParams,
+    light1,
+    light2,
+    showIntersection,
+    selectedObject,
+  ])
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
@@ -672,7 +700,7 @@ export default function Component() {
           <span className="sr-only">{isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}</span>
         </Button>
         {isFullscreen && (
-          <div className="absolute top-4 right-4 flex flex-col items-end space-y-2 z-10">
+          <div className="absolute top-4 right-4 flex flex-col items-end space-y-2 z-10 bg-white dark:bg-black p-4 rounded-md shadow-md">
             {/* Tabs */}
             <div className="flex space-x-2">
               <Button
@@ -714,24 +742,39 @@ export default function Component() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-black dark:text-white">Position</Label>
-                  {['X', 'Y', 'Z'].map((axis, i) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4 text-black dark:text-white">{axis}</span>
-                      <Input
-                        type="number"
-                        value={light1.position[i]}
-                        onChange={(e) =>
-                          setLight1((prev) => {
-                            const newPosition = [...prev.position] as [number, number, number]
-                            newPosition[i] = Number(e.target.value)
-                            return { ...prev, position: newPosition }
-                          })
-                        }
-                        className="w-full bg-black text-white dark:bg-black dark:text-white"
-                      />
-                    </div>
-                  ))}
+                  <Label className="text-black dark:text-white">Position X</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light1.position[0]]}
+                    onValueChange={([value]) =>
+                      setLight1((prev) => ({ ...prev, position: [value, prev.position[1], prev.position[2]] }))
+                    }
+                    className="w-32"
+                  />
+                  <Label className="text-black dark:text-white">Position Y</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light1.position[1]]}
+                    onValueChange={([value]) =>
+                      setLight1((prev) => ({ ...prev, position: [prev.position[0], value, prev.position[2]] }))
+                    }
+                    className="w-32"
+                  />
+                  <Label className="text-black dark:text-white">Position Z</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light1.position[2]]}
+                    onValueChange={([value]) =>
+                      setLight1((prev) => ({ ...prev, position: [prev.position[0], prev.position[1], value] }))
+                    }
+                    className="w-32"
+                  />
                 </div>
               </div>
             )}
@@ -760,24 +803,39 @@ export default function Component() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-black dark:text-white">Position</Label>
-                  {['X', 'Y', 'Z'].map((axis, i) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4 text-black dark:text-white">{axis}</span>
-                      <Input
-                        type="number"
-                        value={light2.position[i]}
-                        onChange={(e) =>
-                          setLight2((prev) => {
-                            const newPosition = [...prev.position] as [number, number, number]
-                            newPosition[i] = Number(e.target.value)
-                            return { ...prev, position: newPosition }
-                          })
-                        }
-                        className="w-full bg-black text-white dark:bg-black dark:text-white"
-                      />
-                    </div>
-                  ))}
+                  <Label className="text-black dark:text-white">Position X</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light2.position[0]]}
+                    onValueChange={([value]) =>
+                      setLight2((prev) => ({ ...prev, position: [value, prev.position[1], prev.position[2]] }))
+                    }
+                    className="w-32"
+                  />
+                  <Label className="text-black dark:text-white">Position Y</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light2.position[1]]}
+                    onValueChange={([value]) =>
+                      setLight2((prev) => ({ ...prev, position: [prev.position[0], value, prev.position[2]] }))
+                    }
+                    className="w-32"
+                  />
+                  <Label className="text-black dark:text-white">Position Z</Label>
+                  <Slider
+                    min={-50}
+                    max={50}
+                    step={0.1}
+                    value={[light2.position[2]]}
+                    onValueChange={([value]) =>
+                      setLight2((prev) => ({ ...prev, position: [prev.position[0], prev.position[1], value] }))
+                    }
+                    className="w-32"
+                  />
                 </div>
               </div>
             )}
@@ -832,13 +890,15 @@ export default function Component() {
         )}
       </div>
       {!isFullscreen && (
-
         <div className="w-full lg:w-1/2 space-y-4">
+          {/* Primitive Selection */}
           <div className="grid gap-4 sm:grid-cols-2">
             {[1, 2].map((index) => (
               <Select
                 key={index}
-                onValueChange={(value: PrimitiveType) => index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)}
+                onValueChange={(value: PrimitiveType) =>
+                  index === 1 ? setPrimitive1Type(value) : setPrimitive2Type(value)
+                }
                 value={index === 1 ? primitive1Type : primitive2Type}
               >
                 <SelectTrigger className="bg-black text-white dark:bg-black dark:text-white">
@@ -855,6 +915,7 @@ export default function Component() {
             ))}
           </div>
 
+          {/* Opacity Control */}
           <div className="space-y-4">
             <Label className="dark:text-white text-black">Opacity</Label>
             <Slider
@@ -862,57 +923,66 @@ export default function Component() {
               max={1}
               step={0.01}
               value={[materialParams.opacity]}
-              onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, opacity: value }))}
+              onValueChange={([value]) =>
+                setMaterialParams((prev) => ({ ...prev, opacity: value }))
+              }
             />
           </div>
 
+          {/* Selected Object Controls */}
           {selectedObject && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
+                {/* Size Controls */}
                 <div className="space-y-2">
                   <Label className="dark:text-white text-black">Size (mm)</Label>
                   {['X', 'Y', 'Z'].map((axis, i) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4 dark:text-white text-black">{axis}</span>
-                      <Input
-                        type="number"
+                    <div key={axis} className="space-y-1">
+                      <span className="dark:text-white text-black">{axis}</span>
+                      <Slider
                         min={1}
                         max={50}
-                        value={selectedObject === 1 ? size1[i] : size2[i]}
-                        onChange={(e) => handleSizeChange(selectedObject, i, Number(e.target.value))}
-                        className="w-full bg-black text-white dark:bg-black dark:text-white"
+                        step={0.1}
+                        value={[selectedObject === 1 ? size1[i] : size2[i]]}
+                        onValueChange={([value]) =>
+                          handleSizeChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
                 </div>
+                {/* Rotation Controls */}
                 <div className="space-y-2">
                   <Label className="dark:text-white text-black">Rotation (deg)</Label>
                   {['X', 'Y', 'Z'].map((axis, i) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4 dark:text-white text-black">{axis}</span>
-                      <Input
-                        type="number"
+                    <div key={axis} className="space-y-1">
+                      <span className="dark:text-white text-black">{axis}</span>
+                      <Slider
                         min={0}
                         max={360}
-                        value={selectedObject === 1 ? rotation1[i] : rotation2[i]}
-                        onChange={(e) => handleRotationChange(selectedObject, i, Number(e.target.value))}
-                        className="w-full bg-black text-white dark:bg-black dark:text-white"
+                        step={1}
+                        value={[selectedObject === 1 ? rotation1[i] : rotation2[i]]}
+                        onValueChange={([value]) =>
+                          handleRotationChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
                 </div>
+                {/* Position Controls */}
                 <div className="space-y-2">
                   <Label className="dark:text-white text-black">Position (mm)</Label>
                   {['X', 'Y', 'Z'].map((axis, i) => (
-                    <div key={axis} className="flex items-center space-x-2">
-                      <span className="w-4 dark:text-white text-black">{axis}</span>
-                      <Input
-                        type="number"
+                    <div key={axis} className="space-y-1">
+                      <span className="dark:text-white text-black">{axis}</span>
+                      <Slider
                         min={-50}
                         max={50}
-                        value={selectedObject === 1 ? position1[i] : position2[i]}
-                        onChange={(e) => handleTransformChange(selectedObject, i, Number(e.target.value))}
-                        className="w-full bg-black text-white dark:bg-black dark:text-white"
+                        step={0.1}
+                        value={[selectedObject === 1 ? position1[i] : position2[i]]}
+                        onValueChange={([value]) =>
+                          handleTransformChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
@@ -921,6 +991,7 @@ export default function Component() {
             </div>
           )}
 
+          {/* Material Parameters */}
           <div className="space-y-4">
             <Label className="dark:text-white text-black">Material Parameters</Label>
             {(material === 'clearcoat' || material === 'subsurface') && (
@@ -929,7 +1000,9 @@ export default function Component() {
                 <Input
                   type="color"
                   value={materialParams.albedo}
-                  onChange={(e) => setMaterialParams(prev => ({ ...prev, albedo: e.target.value }))}
+                  onChange={(e) =>
+                    setMaterialParams((prev) => ({ ...prev, albedo: e.target.value }))
+                  }
                   className="w-full h-10"
                 />
               </div>
@@ -943,7 +1016,9 @@ export default function Component() {
                     max={1}
                     step={0.01}
                     value={[materialParams.clearcoat]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, clearcoat: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({ ...prev, clearcoat: value }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -953,7 +1028,12 @@ export default function Component() {
                     max={1}
                     step={0.01}
                     value={[materialParams.clearcoatRoughness]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, clearcoatRoughness: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        clearcoatRoughness: value,
+                      }))
+                    }
                   />
                 </div>
               </>
@@ -967,7 +1047,12 @@ export default function Component() {
                     max={1}
                     step={0.01}
                     value={[materialParams.thicknessDistortion]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, thicknessDistortion: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        thicknessDistortion: value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -977,7 +1062,12 @@ export default function Component() {
                     max={5}
                     step={0.05}
                     value={[materialParams.thicknessAmbient]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, thicknessAmbient: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        thicknessAmbient: value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -987,7 +1077,12 @@ export default function Component() {
                     max={5}
                     step={0.05}
                     value={[materialParams.thicknessAttenuation]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, thicknessAttenuation: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        thicknessAttenuation: value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -997,7 +1092,12 @@ export default function Component() {
                     max={16}
                     step={0.1}
                     value={[materialParams.thicknessPower]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, thicknessPower: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        thicknessPower: value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -1007,7 +1107,12 @@ export default function Component() {
                     max={50}
                     step={0.1}
                     value={[materialParams.thicknessScale]}
-                    onValueChange={([value]) => setMaterialParams(prev => ({ ...prev, thicknessScale: value }))}
+                    onValueChange={([value]) =>
+                      setMaterialParams((prev) => ({
+                        ...prev,
+                        thicknessScale: value,
+                      }))
+                    }
                   />
                 </div>
               </>
