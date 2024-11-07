@@ -630,8 +630,8 @@ export default function Component() {
   }
 
   return (
-    <div className={`flex flex-col lg:flex-row gap-4 ${isFullscreen ? '' : 'p-4'} ${isDarkMode ? 'dark' : ''}`}>
-      <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-black' : 'w-full lg:w-1/2'}`}>
+    <div className={`flex flex-col lg:flex-row gap-4 ${isFullscreen ? '' : ''} ${isDarkMode ? 'dark' : ''}`}>
+      <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-black' : 'w-full '}`}>
         <div className={`${isFullscreen ? 'w-full h-full' : 'w-full aspect-square'} border dark:border-white border-black box-border`}>
           <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }} ref={canvasRef}>
             <Scene
