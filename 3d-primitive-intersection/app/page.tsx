@@ -438,6 +438,14 @@ export default function Component() {
     document.documentElement.classList.toggle('dark', isDarkMode)
   }, [isDarkMode])
 
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+  }, [isFullscreen])
+
   const randomizePrimitives = useCallback(() => {
     setPrimitive1Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
     setPrimitive2Type(primitiveTypes[Math.floor(Math.random() * primitiveTypes.length)])
@@ -593,9 +601,9 @@ export default function Component() {
   }
 
   return (
-    <div className={`flex flex-col lg:flex-row gap-4 p-4 ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`flex flex-col lg:flex-row gap-4 ${isFullscreen ? '' : 'p-4'} ${isDarkMode ? 'dark' : ''}`}>
       <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-black' : 'w-full lg:w-1/2'}`}>
-        <div className={`${isFullscreen ? 'w-screen h-screen' : 'w-full aspect-square'} border dark:border-white border-black`}>
+        <div className={`${isFullscreen ? 'w-full h-full' : 'w-full aspect-square'} border dark:border-white border-black box-border`}>
           <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }} ref={canvasRef}>
             <Scene
               primitive1Type={primitive1Type}
