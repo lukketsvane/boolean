@@ -76,30 +76,25 @@ interface MaterialParams {
 const createPrimitive = (type: PrimitiveType) => {
   switch (type) {
     case 'box':
-      return new THREE.BoxGeometry(1, 1, 1, 10, 10, 10) // Increased segments
+      return new THREE.BoxGeometry(1, 1, 1)
     case 'cylinder':
-      return new THREE.CylinderGeometry(0.5, 0.5, 1, 64) // Increased radial segments
+      return new THREE.CylinderGeometry(0.5, 0.5, 1, 32)
     case 'sphere':
-      return new THREE.SphereGeometry(0.5, 64, 64) // Increased width and height segments
+      return new THREE.SphereGeometry(0.5, 32, 32)
     case 'cone':
-      return new THREE.ConeGeometry(0.5, 1, 64) // Increased radial segments
+      return new THREE.ConeGeometry(0.5, 1, 32)
     case 'pyramid':
-      return new THREE.ConeGeometry(0.5, 1, 4) // Pyramid remains the same
+      return new THREE.ConeGeometry(0.5, 1, 4)
     case 'torus':
-      return new THREE.TorusGeometry(0.5, 0.25, 32, 200) // Increased tubular and radial segments
+      return new THREE.TorusGeometry(0.5, 0.25, 16, 100)
     case 'dodecahedron':
-      return new THREE.DodecahedronGeometry(0.5, 2) // Increased detail level
+      return new THREE.DodecahedronGeometry(0.5)
     case 'octahedron':
-      return new THREE.OctahedronGeometry(0.5, 2) // Increased detail level
+      return new THREE.OctahedronGeometry(0.5)
   }
 }
 
-const createMaterial = (
-  material: MaterialType,
-  isDarkMode: boolean,
-  params: MaterialParams,
-  isIntersection: boolean = false
-) => {
+const createMaterial = (material: MaterialType, isDarkMode: boolean, params: MaterialParams, isIntersection: boolean = false) => {
   const baseParams = {
     transparent: !isIntersection,
     opacity: isIntersection ? 1 : params.opacity,
@@ -109,14 +104,14 @@ const createMaterial = (
     case 'gold':
       return new THREE.MeshStandardMaterial({
         ...baseParams,
-        color: new THREE.Color('#FFD700'),
+        color: new THREE.Color("#FFD700"),
         metalness: 0.9,
         roughness: 0.1,
       })
     case 'silver':
       return new THREE.MeshStandardMaterial({
         ...baseParams,
-        color: new THREE.Color('#C0C0C0'),
+        color: new THREE.Color("#C0C0C0"),
         metalness: 0.9,
         roughness: 0.2,
       })
@@ -154,7 +149,7 @@ const createMaterial = (
     default: // clay
       return new THREE.MeshStandardMaterial({
         ...baseParams,
-        color: new THREE.Color(isDarkMode ? '#888888' : '#CCCCCC'),
+        color: new THREE.Color(isDarkMode ? "#888888" : "#CCCCCC"),
         metalness: 0.1,
         roughness: 0.8,
       })
@@ -180,7 +175,6 @@ function Scene({
   setRotation2,
   isDarkMode,
   materialParams,
-  setMaterialParams,
   isFullscreen,
   light1,
   light2,
@@ -194,45 +188,32 @@ function Scene({
 
   const primitive1Geometry = useMemo(() => createPrimitive(primitive1Type), [primitive1Type])
   const primitive2Geometry = useMemo(() => createPrimitive(primitive2Type), [primitive2Type])
-  const materialInstance = useMemo(
-    () => createMaterial(material, isDarkMode, materialParams),
-    [material, isDarkMode, materialParams]
-  )
-  const intersectionMaterialInstance = useMemo(
-    () => createMaterial(material, isDarkMode, materialParams, true),
-    [material, isDarkMode, materialParams]
-  )
+  const materialInstance = useMemo(() => createMaterial(material, isDarkMode, materialParams), [material, isDarkMode, materialParams])
+  const intersectionMaterialInstance = useMemo(() => createMaterial(material, isDarkMode, materialParams, true), [material, isDarkMode, materialParams])
 
-  const updatePrimitive = useCallback(
-    (
-      mesh: THREE.Mesh,
-      geometry: THREE.BufferGeometry,
-      size: [number, number, number],
-      rotation: [number, number, number],
-      position: [number, number, number]
-    ) => {
-      if (!mesh) return
-      mesh.geometry = geometry
-      mesh.scale.set(...size)
-      mesh.rotation.set(...rotation.map((r) => (r * Math.PI) / 180) as [number, number, number])
-      mesh.position.set(...position)
-    },
-    []
-  )
+  const updatePrimitive = useCallback((mesh: THREE.Mesh, geometry: THREE.BufferGeometry, size: [number, number, number], rotation: [number, number, number], position: [number, number, number]) => {
+    if (!mesh) return
+    mesh.geometry = geometry
+    mesh.scale.set(...size)
+    mesh.rotation.set(...rotation.map(r => r * Math.PI / 180) as [number, number, number])
+    mesh.position.set(...position)
+  }, [])
 
   const calculateIntersection = useCallback(() => {
     if (!primitive1Ref.current || !primitive2Ref.current) return
 
+    // Create clones of the primitives to perform CSG operations
     const primitive1Clone = primitive1Ref.current.clone()
     const primitive2Clone = primitive2Ref.current.clone()
 
+    // Apply transformations to the clones
     primitive1Clone.updateMatrix()
     primitive2Clone.updateMatrix()
 
     const bspA = CSG.fromMesh(primitive1Clone)
     const bspB = CSG.fromMesh(primitive2Clone)
     const intersectionBSP = bspA.intersect(bspB)
-
+    
     if (intersectionRef.current) {
       scene.remove(intersectionRef.current)
       intersectionRef.current.geometry.dispose()
@@ -254,6 +235,7 @@ function Scene({
       primitive2Ref.current.visible = showIntersection || selectedObject === 2
     }
 
+    // Clean up clones
     primitive1Clone.geometry.dispose()
     primitive2Clone.geometry.dispose()
   }, [scene, showIntersection, selectedObject, intersectionMaterialInstance])
@@ -288,42 +270,39 @@ function Scene({
     calculateIntersection()
   })
 
-  const onMouseClick = useCallback(
-    (event: MouseEvent) => {
-      if (isFullscreen) return
+  const onMouseClick = useCallback((event: MouseEvent) => {
+    if (isFullscreen) return // Disable selection in fullscreen mode
 
-      const canvas = event.target as HTMLCanvasElement
-      if (!(canvas instanceof HTMLCanvasElement)) return
+    const canvas = event.target as HTMLCanvasElement
+    if (!(canvas instanceof HTMLCanvasElement)) return
 
-      const rect = canvas.getBoundingClientRect()
-      const mouse = new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1
-      )
+    const rect = canvas.getBoundingClientRect()
+    const mouse = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    )
 
-      const raycaster = new THREE.Raycaster()
-      raycaster.setFromCamera(mouse, camera)
-      const intersects = raycaster.intersectObjects([primitive1Ref.current!, primitive2Ref.current!])
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(mouse, camera)
+    const intersects = raycaster.intersectObjects([primitive1Ref.current!, primitive2Ref.current!])
 
-      if (intersects.length > 0) {
-        const clickedObject = intersects[0].object
-        if (clickedObject === primitive1Ref.current) {
-          setSelectedObject(1)
-          transformControlsRef.current?.attach(primitive1Ref.current)
-        } else if (clickedObject === primitive2Ref.current) {
-          setSelectedObject(2)
-          transformControlsRef.current?.attach(primitive2Ref.current)
-        }
-        if (transformControlsRef.current) {
-          transformControlsRef.current.visible = true
-        }
-      } else {
-        setSelectedObject(null)
-        transformControlsRef.current?.detach()
+    if (intersects.length > 0) {
+      const clickedObject = intersects[0].object
+      if (clickedObject === primitive1Ref.current) {
+        setSelectedObject(1)
+        transformControlsRef.current?.attach(primitive1Ref.current)
+      } else if (clickedObject === primitive2Ref.current) {
+        setSelectedObject(2)
+        transformControlsRef.current?.attach(primitive2Ref.current)
       }
-    },
-    [camera, setSelectedObject, isFullscreen]
-  )
+      if (transformControlsRef.current) {
+        transformControlsRef.current.visible = true
+      }
+    } else {
+      setSelectedObject(null)
+      transformControlsRef.current?.detach()
+    }
+  }, [camera, setSelectedObject, isFullscreen])
 
   useEffect(() => {
     const canvasElement = document.querySelector('canvas')
@@ -353,16 +332,16 @@ function Scene({
           if (selectedObject === 1) {
             setPosition1([position.x, position.y, position.z])
             setRotation1([
-              (rotation.x * 180) / Math.PI,
-              (rotation.y * 180) / Math.PI,
-              (rotation.z * 180) / Math.PI,
+              rotation.x * 180 / Math.PI,
+              rotation.y * 180 / Math.PI,
+              rotation.z * 180 / Math.PI
             ])
           } else if (selectedObject === 2) {
             setPosition2([position.x, position.y, position.z])
             setRotation2([
-              (rotation.x * 180) / Math.PI,
-              (rotation.y * 180) / Math.PI,
-              (rotation.z * 180) / Math.PI,
+              rotation.x * 180 / Math.PI,
+              rotation.y * 180 / Math.PI,
+              rotation.z * 180 / Math.PI
             ])
           }
           calculateIntersection()
@@ -389,8 +368,10 @@ function Scene({
   return (
     <>
       <OrbitControls ref={orbitControlsRef} makeDefault enableDamping={false} />
-      {selectedObject !== null && !isFullscreen && <TransformControls ref={transformControlsRef} />}
-      <Environment preset={isDarkMode ? 'night' : 'sunset'} background={false} />
+      {selectedObject !== null && !isFullscreen && (
+        <TransformControls ref={transformControlsRef} />
+      )}
+      <Environment preset={isDarkMode ? "night" : "sunset"} background={false} />
       <ambientLight intensity={isDarkMode ? 0.2 : 0.4} />
       {light1.isOn && (
         <directionalLight
@@ -433,7 +414,7 @@ export default function Component() {
   const [rotation1, setRotation1] = useState<[number, number, number]>([0, 0, 0])
   const [rotation2, setRotation2] = useState<[number, number, number]>([0, 0, 0])
   const [position1, setPosition1] = useState<[number, number, number]>([-12.5, 0, 0])
-  const [position2, setPosition2] = useState<[number, number, number]>([12.5, 0, 0])
+  const [position2, setPosition2] = useState<[number, number, number]>([-25, 0, 0])
   const [selectedObject, setSelectedObject] = useState<number | null>(null)
   const [material, setMaterial] = useState<MaterialType>('clay')
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -449,7 +430,7 @@ export default function Component() {
     thicknessAttenuation: 0.8,
     thicknessPower: 2.0,
     thicknessScale: 16.0,
-    albedo: '#FFFFFF',
+    albedo: "#FFFFFF",
     opacity: 0.7,
   })
 
@@ -508,7 +489,7 @@ export default function Component() {
 
   const handleSizeChange = useCallback((index: number, axis: number, value: number) => {
     const setter = index === 1 ? setSize1 : setSize2
-    setter((prev) => {
+    setter(prev => {
       const newSize = [...prev] as [number, number, number]
       newSize[axis] = value
       return newSize
@@ -517,7 +498,7 @@ export default function Component() {
 
   const handleRotationChange = useCallback((index: number, axis: number, value: number) => {
     const setter = index === 1 ? setRotation1 : setRotation2
-    setter((prev) => {
+    setter(prev => {
       const newRotation = [...prev] as [number, number, number]
       newRotation[axis] = value
       return newRotation
@@ -526,7 +507,7 @@ export default function Component() {
 
   const handleTransformChange = useCallback((index: number, axis: number, value: number) => {
     const setter = index === 1 ? setPosition1 : setPosition2
-    setter((prev) => {
+    setter(prev => {
       const newPosition = [...prev] as [number, number, number]
       newPosition[axis] = value
       return newPosition
@@ -535,31 +516,27 @@ export default function Component() {
 
   const downloadScene = useCallback(() => {
     const scene = new THREE.Scene()
-    const primitive1 = new THREE.Mesh(
-      createPrimitive(primitive1Type),
-      createMaterial(material, isDarkMode, materialParams)
-    )
-    const primitive2 = new THREE.Mesh(
-      createPrimitive(primitive2Type),
-      createMaterial(material, isDarkMode, materialParams)
-    )
-
+    const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
+    const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
+    
+    // Convert sizes from millimeters to meters (Three.js uses meters by default)
     const convertToMeters = (size: [number, number, number]): [number, number, number] => {
-      return size.map((value) => value / 1000) as [number, number, number]
+      return size.map(value => value / 1000) as [number, number, number]
     }
-
+    
     const size1InMeters = convertToMeters(size1)
     const size2InMeters = convertToMeters(size2)
-
-    const position1InMeters = position1.map((value) => value / 1000) as [number, number, number]
-    const position2InMeters = position2.map((value) => value / 1000) as [number, number, number]
+    
+    // Convert positions from millimeters to meters
+    const position1InMeters = position1.map(value => value / 1000) as [number, number, number]
+    const position2InMeters = position2.map(value => value / 1000) as [number, number, number]
 
     primitive1.scale.set(...size1InMeters)
-    primitive1.rotation.set(...rotation1.map((r) => (r * Math.PI) / 180) as [number, number, number])
+    primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
     primitive1.position.set(...position1InMeters)
 
     primitive2.scale.set(...size2InMeters)
-    primitive2.rotation.set(...rotation2.map((r) => (r * Math.PI) / 180) as [number, number, number])
+    primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
     primitive2.position.set(...position2InMeters)
 
     scene.add(primitive1, primitive2)
@@ -568,6 +545,7 @@ export default function Component() {
     exporter.parse(
       scene,
       (gltf) => {
+        // Add custom metadata to indicate that the model is in millimeters
         if (typeof gltf === 'object' && gltf !== null) {
           if (!gltf.asset) gltf.asset = {}
           if (!gltf.asset.extras) gltf.asset.extras = {}
@@ -585,59 +563,42 @@ export default function Component() {
       },
       { binary: false }
     )
-  }, [
-    primitive1Type,
-    primitive2Type,
-    size1,
-    size2,
-    rotation1,
-    rotation2,
-    position1,
-    position2,
-    material,
-    isDarkMode,
-    materialParams,
-  ])
+  }, [primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams])
 
   const captureSnapshot = useCallback(() => {
     if (canvasRef.current) {
+      // Create a new scene and camera
       const scene = new THREE.Scene()
       const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 1000)
       camera.position.set(30, 30, 30)
       camera.lookAt(0, 0, 0)
 
-      const primitive1 = new THREE.Mesh(
-        createPrimitive(primitive1Type),
-        createMaterial(material, isDarkMode, materialParams)
-      )
-      const primitive2 = new THREE.Mesh(
-        createPrimitive(primitive2Type),
-        createMaterial(material, isDarkMode, materialParams)
-      )
+      // Add primitives to the scene
+      const primitive1 = new THREE.Mesh(createPrimitive(primitive1Type), createMaterial(material, isDarkMode, materialParams))
+      const primitive2 = new THREE.Mesh(createPrimitive(primitive2Type), createMaterial(material, isDarkMode, materialParams))
       primitive1.scale.set(...size1)
-      primitive1.rotation.set(...rotation1.map((r) => (r * Math.PI) / 180) as [number, number, number])
+      primitive1.rotation.set(...rotation1.map(r => r * Math.PI / 180) as [number, number, number])
       primitive1.position.set(...position1)
       primitive2.scale.set(...size2)
-      primitive2.rotation.set(...rotation2.map((r) => (r * Math.PI) / 180) as [number, number, number])
+      primitive2.rotation.set(...rotation2.map(r => r * Math.PI / 180) as [number, number, number])
       primitive2.position.set(...position2)
-
+      
+      // Ensure both primitives are visible in the snapshot
       primitive1.visible = true
       primitive2.visible = true
-
+      
       scene.add(primitive1, primitive2)
 
+      // Calculate and add intersection
       const bspA = CSG.fromMesh(primitive1)
       const bspB = CSG.fromMesh(primitive2)
       const intersectionBSP = bspA.intersect(bspB)
-      const intersectionMesh = CSG.toMesh(
-        intersectionBSP,
-        new THREE.Matrix4(),
-        createMaterial(material, isDarkMode, materialParams, true)
-      )
+      const intersectionMesh = CSG.toMesh(intersectionBSP, new THREE.Matrix4(), createMaterial(material, isDarkMode, materialParams, true))
       intersectionMesh.castShadow = true
       intersectionMesh.receiveShadow = true
       scene.add(intersectionMesh)
 
+      // Add lighting
       const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.2 : 0.4)
       const directionalLight1 = new THREE.DirectionalLight(0xffffff, light1.intensity)
       directionalLight1.position.set(...light1.position)
@@ -647,32 +608,19 @@ export default function Component() {
       if (light1.isOn) scene.add(directionalLight1)
       if (light2.isOn) scene.add(directionalLight2)
 
+      // Render the scene
       const renderer = new THREE.WebGLRenderer({ antialias: true })
       renderer.setSize(1024, 1024)
       renderer.render(scene, camera)
 
+      // Create and download the image
       const dataURL = renderer.domElement.toDataURL('image/png')
       const link = document.createElement('a')
       link.href = dataURL
       link.download = `${primitive1Type}_${primitive2Type}.png`
       link.click()
     }
-  }, [
-    canvasRef,
-    primitive1Type,
-    primitive2Type,
-    size1,
-    size2,
-    rotation1,
-    rotation2,
-    position1,
-    position2,
-    material,
-    isDarkMode,
-    materialParams,
-    light1,
-    light2,
-  ])
+  }, [canvasRef, primitive1Type, primitive2Type, size1, size2, rotation1, rotation2, position1, position2, material, isDarkMode, materialParams, light1, light2])
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
@@ -682,23 +630,9 @@ export default function Component() {
   }
 
   return (
-    <div
-      className={`flex ${isFullscreen ? 'flex-col' : 'flex-col lg:flex-row'} gap-4 ${
-        isFullscreen ? '' : 'p-4'
-      } ${isDarkMode ? 'dark' : ''}`}
-    >
-      <div
-        className={`relative ${
-          isFullscreen
-            ? 'fixed inset-0 z-50 bg-white dark:bg-black w-full h-full'
-            : 'w-full lg:w-1/2'
-        }`}
-      >
-        <div
-          className={`${
-            isFullscreen ? 'w-full h-full' : 'w-full aspect-square'
-          } border dark:border-white border-black box-border`}
-        >
+    <div className={`flex flex-col lg:flex-row gap-4 ${isFullscreen ? '' : 'p-4'} ${isDarkMode ? 'dark' : ''}`}>
+      <div className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-black' : 'w-full lg:w-1/2'}`}>
+        <div className={`${isFullscreen ? 'w-full h-full' : 'w-full aspect-square'} border dark:border-white border-black box-border`}>
           <Canvas shadows camera={{ position: [30, 30, 30], fov: 65 }} ref={canvasRef}>
             <Scene
               primitive1Type={primitive1Type}
@@ -758,7 +692,9 @@ export default function Component() {
                 <div className="flex items-center space-x-2">
                   <Switch
                     checked={light1.isOn}
-                    onCheckedChange={(checked) => setLight1((prev) => ({ ...prev, isOn: checked }))}
+                    onCheckedChange={(checked) =>
+                      setLight1((prev) => ({ ...prev, isOn: checked }))
+                    }
                   />
                   <Label className="text-black dark:text-white">Light 1 On/Off</Label>
                 </div>
@@ -783,10 +719,7 @@ export default function Component() {
                     step={0.1}
                     value={[light1.position[0]]}
                     onValueChange={([value]) =>
-                      setLight1((prev) => ({
-                        ...prev,
-                        position: [value, prev.position[1], prev.position[2]],
-                      }))
+                      setLight1((prev) => ({ ...prev, position: [value, prev.position[1], prev.position[2]] }))
                     }
                     className="w-32"
                   />
@@ -797,10 +730,7 @@ export default function Component() {
                     step={0.1}
                     value={[light1.position[1]]}
                     onValueChange={([value]) =>
-                      setLight1((prev) => ({
-                        ...prev,
-                        position: [prev.position[0], value, prev.position[2]],
-                      }))
+                      setLight1((prev) => ({ ...prev, position: [prev.position[0], value, prev.position[2]] }))
                     }
                     className="w-32"
                   />
@@ -811,10 +741,7 @@ export default function Component() {
                     step={0.1}
                     value={[light1.position[2]]}
                     onValueChange={([value]) =>
-                      setLight1((prev) => ({
-                        ...prev,
-                        position: [prev.position[0], prev.position[1], value],
-                      }))
+                      setLight1((prev) => ({ ...prev, position: [prev.position[0], prev.position[1], value] }))
                     }
                     className="w-32"
                   />
@@ -826,7 +753,9 @@ export default function Component() {
                 <div className="flex items-center space-x-2">
                   <Switch
                     checked={light2.isOn}
-                    onCheckedChange={(checked) => setLight2((prev) => ({ ...prev, isOn: checked }))}
+                    onCheckedChange={(checked) =>
+                      setLight2((prev) => ({ ...prev, isOn: checked }))
+                    }
                   />
                   <Label className="text-black dark:text-white">Light 2 On/Off</Label>
                 </div>
@@ -851,10 +780,7 @@ export default function Component() {
                     step={0.1}
                     value={[light2.position[0]]}
                     onValueChange={([value]) =>
-                      setLight2((prev) => ({
-                        ...prev,
-                        position: [value, prev.position[1], prev.position[2]],
-                      }))
+                      setLight2((prev) => ({ ...prev, position: [value, prev.position[1], prev.position[2]] }))
                     }
                     className="w-32"
                   />
@@ -865,10 +791,7 @@ export default function Component() {
                     step={0.1}
                     value={[light2.position[1]]}
                     onValueChange={([value]) =>
-                      setLight2((prev) => ({
-                        ...prev,
-                        position: [prev.position[0], value, prev.position[2]],
-                      }))
+                      setLight2((prev) => ({ ...prev, position: [prev.position[0], value, prev.position[2]] }))
                     }
                     className="w-32"
                   />
@@ -879,10 +802,7 @@ export default function Component() {
                     step={0.1}
                     value={[light2.position[2]]}
                     onValueChange={([value]) =>
-                      setLight2((prev) => ({
-                        ...prev,
-                        position: [prev.position[0], prev.position[1], value],
-                      }))
+                      setLight2((prev) => ({ ...prev, position: [prev.position[0], prev.position[1], value] }))
                     }
                     className="w-32"
                   />
@@ -894,30 +814,15 @@ export default function Component() {
         {!isFullscreen && (
           <div className="flex justify-between items-center mt-4">
             <div className="flex space-x-2">
-              <Button
-                onClick={randomizePrimitives}
-                size="icon"
-                variant="ghost"
-                className="hover:bg-transparent"
-              >
+              <Button onClick={randomizePrimitives} size="icon" variant="ghost" className="hover:bg-transparent">
                 <Shuffle className="h-4 w-4" />
                 <span className="sr-only">Randomize primitives</span>
               </Button>
-              <Button
-                onClick={downloadScene}
-                size="icon"
-                variant="ghost"
-                className="hover:bg-transparent"
-              >
+              <Button onClick={downloadScene} size="icon" variant="ghost" className="hover:bg-transparent">
                 <Download className="h-4 w-4" />
                 <span className="sr-only">Download scene</span>
               </Button>
-              <Button
-                onClick={captureSnapshot}
-                size="icon"
-                variant="ghost"
-                className="hover:bg-transparent"
-              >
+              <Button onClick={captureSnapshot} size="icon" variant="ghost" className="hover:bg-transparent">
                 <ImageIcon className="h-4 w-4" />
                 <span className="sr-only">Capture snapshot</span>
               </Button>
@@ -931,15 +836,11 @@ export default function Component() {
                     className={`w-6 h-6 rounded-full ${
                       material === option ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-blue-400' : ''
                     } ${
-                      option === 'clay'
-                        ? 'bg-gray-400 dark:bg-gray-600'
-                        : option === 'gold'
-                        ? 'bg-yellow-400 dark:bg-yellow-600'
-                        : option === 'silver'
-                        ? 'bg-gray-300 dark:bg-gray-400'
-                        : option === 'clearcoat'
-                        ? 'bg-blue-400 dark:bg-blue-600'
-                        : 'bg-red-400 dark:bg-red-600'
+                      option === 'clay' ? 'bg-gray-400 dark:bg-gray-600' :
+                      option === 'gold' ? 'bg-yellow-400 dark:bg-yellow-600' :
+                      option === 'silver' ?'bg-gray-300 dark:bg-gray-400' :
+                      option === 'clearcoat' ? 'bg-blue-400 dark:bg-blue-600' :
+                      'bg-red-400 dark:bg-red-600'
                     }`}
                     aria-label={`Set material to ${option}`}
                   />
@@ -952,9 +853,7 @@ export default function Component() {
                   id="intersection-toggle"
                   className="bg-black dark:bg-white"
                 />
-                <Label htmlFor="intersection-toggle" className="dark:text-white text-black">
-                  Show Primitives
-                </Label>
+                <Label htmlFor="intersection-toggle" className="dark:text-white text-black">Show Primitives</Label>
               </div>
             </div>
           </div>
@@ -994,7 +893,9 @@ export default function Component() {
               max={1}
               step={0.01}
               value={[materialParams.opacity]}
-              onValueChange={([value]) => setMaterialParams((prev) => ({ ...prev, opacity: value }))}
+              onValueChange={([value]) =>
+                setMaterialParams((prev) => ({ ...prev, opacity: value }))
+              }
             />
           </div>
 
@@ -1013,7 +914,9 @@ export default function Component() {
                         max={50}
                         step={0.1}
                         value={[selectedObject === 1 ? size1[i] : size2[i]]}
-                        onValueChange={([value]) => handleSizeChange(selectedObject, i, value)}
+                        onValueChange={([value]) =>
+                          handleSizeChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
@@ -1029,7 +932,9 @@ export default function Component() {
                         max={360}
                         step={1}
                         value={[selectedObject === 1 ? rotation1[i] : rotation2[i]]}
-                        onValueChange={([value]) => handleRotationChange(selectedObject, i, value)}
+                        onValueChange={([value]) =>
+                          handleRotationChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
@@ -1045,7 +950,9 @@ export default function Component() {
                         max={50}
                         step={0.1}
                         value={[selectedObject === 1 ? position1[i] : position2[i]]}
-                        onValueChange={([value]) => handleTransformChange(selectedObject, i, value)}
+                        onValueChange={([value]) =>
+                          handleTransformChange(selectedObject, i, value)
+                        }
                       />
                     </div>
                   ))}
@@ -1063,7 +970,9 @@ export default function Component() {
                 <Input
                   type="color"
                   value={materialParams.albedo}
-                  onChange={(e) => setMaterialParams((prev) => ({ ...prev, albedo: e.target.value }))}
+                  onChange={(e) =>
+                    setMaterialParams((prev) => ({ ...prev, albedo: e.target.value }))
+                  }
                   className="w-full h-10"
                 />
               </div>
